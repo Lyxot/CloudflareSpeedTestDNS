@@ -15,6 +15,7 @@ import (
 
 var (
 	version, versionNew string
+	configFile          string
 )
 
 func init() {
@@ -71,6 +72,8 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
     -debug
         调试输出模式；会在一些非预期情况下输出更多日志以便判断原因；(默认 关闭)
 
+    -c config.toml
+        指定TOML配置文件；指定配置文件时，全部参数从文件中读取，命令行参数无效
     -v
         打印程序版本 + 检查版本更新
     -h
@@ -104,9 +107,33 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 
 	flag.BoolVar(&utils.Debug, "debug", false, "调试输出模式")
 
+	flag.StringVar(&configFile, "c", "", "指定TOML配置文件")
 	flag.BoolVar(&printVersion, "v", false, "打印程序版本")
 	flag.Usage = func() { fmt.Print(help) }
 	flag.Parse()
+
+	// 如果指定了配置文件，从配置文件加载参数
+	if configFile != "" {
+		config, err := LoadConfig(configFile)
+		if err != nil {
+			fmt.Printf("加载配置文件失败: %v\n", err)
+			os.Exit(1)
+		}
+		ApplyConfig(config)
+		// 配置文件中的延迟参数需要特殊处理
+		if config.MaxDelay > 0 {
+			maxDelay = config.MaxDelay
+		}
+		if config.MinDelay >= 0 {
+			minDelay = config.MinDelay
+		}
+		if config.MaxLossRate >= 0 && config.MaxLossRate <= 1 {
+			maxLossRate = config.MaxLossRate
+		}
+		if config.DownloadTime > 0 {
+			downloadTime = config.DownloadTime
+		}
+	}
 
 	if task.MinSpeed > 0 && time.Duration(maxDelay)*time.Millisecond == utils.InputMaxDelay {
 		utils.Yellow.Println("[提示] 在使用 [-sl] 参数时，建议搭配 [-tl] 参数，以避免因凑不够 [-dn] 数量而一直测速...")
