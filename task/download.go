@@ -2,6 +2,7 @@ package task
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -139,8 +140,11 @@ func printDownloadDebugInfo(ip *net.IPAddr, err error, statusCode int, url, last
 func downloadHandler(ip *net.IPAddr) (float64, string) {
 	var lastRedirectURL string // 用于记录最后一次重定向目标，以便在访问错误时输出
 	client := &http.Client{
-		Transport: &http.Transport{DialContext: getDialContext(ip)},
-		Timeout:   Timeout,
+		Transport: &http.Transport{
+			DialContext:     getDialContext(ip),
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // 禁用SSL证书验证
+		},
+		Timeout: Timeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			lastRedirectURL = req.URL.String() // 记录每次重定向的目标，以便在访问错误时输出
 			if len(via) > 10 {                 // 限制最多重定向 10 次
