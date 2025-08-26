@@ -113,3 +113,29 @@ subdomain = "www"
 
 # TTL (默认 600)
 ttl = 600
+
+#######################
+# Cloudflare DNS相关参数
+#######################
+
+[cloudflare]
+# 是否启用Cloudflare DNS (默认 false)
+enable = false
+
+# Cloudflare API Token
+api_token = ""
+
+# Cloudflare 域名 Zone ID
+zone_id = ""
+
+# 域名
+domain = "example.com"
+
+# 子域名
+subdomain = "www"
+
+# 是否开启Cloudflare代理 (默认 false)
+proxied = false
+
+# TTL (1为自动，默认 1)
+ttl = 1

@@ -18,6 +18,7 @@ var (
 	version, versionNew string
 	configFile          string
 	enableAliDNS        bool
+	enableCloudflare    bool
 )
 
 func init() {
@@ -88,6 +89,21 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
     -alidns-ttl
         阿里云TTL；域名解析记录的TTL值（默认 600）
 
+    -cloudflare
+        启用Cloudflare DNS更新；测速完成后将结果更新到Cloudflare DNS；(默认 关闭)
+    -cf-token
+        Cloudflare API Token；用于访问Cloudflare API
+    -cf-zone
+        Cloudflare Zone ID；域名的Zone ID
+    -cf-domain
+        Cloudflare域名；需要更新的域名
+    -cf-subdomain
+        Cloudflare子域名（如 www）
+    -cf-proxy
+        是否开启Cloudflare代理；(默认 关闭)
+    -cf-ttl
+        Cloudflare TTL；域名解析记录的TTL值，1为自动（默认 1）
+
     -debug
         调试输出模式；会在一些非预期情况下输出更多日志以便判断原因；(默认 关闭)
 
@@ -133,6 +149,14 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 	flag.StringVar(&ddns.AliDNSConfig.Domain, "alidns-domain", "", "阿里云域名")
 	flag.StringVar(&ddns.AliDNSConfig.Subdomain, "alidns-subdomain", "", "阿里云子域名")
 	flag.IntVar(&ddns.AliDNSConfig.TTL, "alidns-ttl", 600, "阿里云TTL")
+
+	flag.BoolVar(&enableCloudflare, "cloudflare", false, "启用Cloudflare DNS更新")
+	flag.StringVar(&ddns.CloudflareConfig.APIToken, "cf-token", "", "Cloudflare API Token")
+	flag.StringVar(&ddns.CloudflareConfig.ZoneID, "cf-zone", "", "Cloudflare Zone ID")
+	flag.StringVar(&ddns.CloudflareConfig.Domain, "cf-domain", "", "Cloudflare域名")
+	flag.StringVar(&ddns.CloudflareConfig.Subdomain, "cf-subdomain", "", "Cloudflare子域名")
+	flag.BoolVar(&ddns.CloudflareConfig.Proxied, "cf-proxy", false, "是否开启Cloudflare代理")
+	flag.IntVar(&ddns.CloudflareConfig.TTL, "cf-ttl", 1, "Cloudflare TTL（1为自动）")
 
 	flag.StringVar(&configFile, "c", "", "指定TOML配置文件")
 	flag.BoolVar(&printVersion, "v", false, "打印程序版本")
@@ -221,9 +245,9 @@ func main() {
 		ipv4SpeedData.Print()
 
 		ipv4Results := []string{}
-			for i := 0; i < utils.PrintNum && i < len(ipv4SpeedData); i++ {
-				ipv4Results = append(ipv4Results, ipv4SpeedData[i].IP.String())
-			}
+		for i := 0; i < utils.PrintNum && i < len(ipv4SpeedData); i++ {
+			ipv4Results = append(ipv4Results, ipv4SpeedData[i].IP.String())
+		}
 
 		// 如果启用了阿里云DNS，则同步结果
 		if enableAliDNS && len(ipv4Results) > 0 {
@@ -232,6 +256,16 @@ func main() {
 				utils.Red.Printf("同步到阿里云DNS失败: %v\n", err)
 			} else {
 				utils.Green.Println("同步到阿里云DNS成功!")
+			}
+		}
+
+		// 如果启用了Cloudflare DNS，则同步结果
+		if enableCloudflare && len(ipv4Results) > 0 {
+			fmt.Println("\n开始同步结果到Cloudflare DNS...")
+			if err := ddns.SyncCloudflareRecords(ipv4Results, []string{}); err != nil {
+				utils.Red.Printf("同步到Cloudflare DNS失败: %v\n", err)
+			} else {
+				utils.Green.Println("同步到Cloudflare DNS成功!")
 			}
 		}
 
@@ -259,9 +293,9 @@ func main() {
 		ipv6SpeedData.Print()
 
 		ipv6Results := []string{}
-			for i := 0; i < utils.PrintNum && i < len(ipv6SpeedData); i++ {
-				ipv6Results = append(ipv6Results, ipv6SpeedData[i].IP.String())
-			}
+		for i := 0; i < utils.PrintNum && i < len(ipv6SpeedData); i++ {
+			ipv6Results = append(ipv6Results, ipv6SpeedData[i].IP.String())
+		}
 
 		// 如果启用了阿里云DNS，则同步结果
 		if enableAliDNS && len(ipv6Results) > 0 {
@@ -272,6 +306,16 @@ func main() {
 				utils.Green.Println("同步到阿里云DNS成功!")
 			}
 		}
+
+		// 如果启用了Cloudflare DNS，则同步结果
+		if enableCloudflare && len(ipv6Results) > 0 {
+			fmt.Println("\n开始同步结果到Cloudflare DNS...")
+			if err := ddns.SyncCloudflareRecords([]string{}, ipv6Results); err != nil {
+				utils.Red.Printf("同步到Cloudflare DNS失败: %v\n", err)
+			} else {
+				utils.Green.Println("同步到Cloudflare DNS成功!")
+			}
+		}
 	} else {
 		// 开始延迟测速 + 过滤延迟/丢包
 		pingData := task.NewPing().Run().FilterDelay().FilterLossRate()
@@ -279,18 +323,18 @@ func main() {
 		speedData := task.TestDownloadSpeed(pingData)
 		utils.ExportCsv(speedData) // 输出文件
 		speedData.Print()          // 打印结果
-		
-			// 根据结果类型分类
-			ipv4Results := []string{}
-			ipv6Results := []string{}
-			for i := 0; i < utils.PrintNum && i < len(speedData); i++ {
-				ip := speedData[i].IP.String()
-				if task.IsIPv4(ip) {
-					ipv4Results = append(ipv4Results, ip)
-				} else {
-					ipv6Results = append(ipv6Results, ip)
-				}
+
+		// 根据结果类型分类
+		ipv4Results := []string{}
+		ipv6Results := []string{}
+		for i := 0; i < utils.PrintNum && i < len(speedData); i++ {
+			ip := speedData[i].IP.String()
+			if task.IsIPv4(ip) {
+				ipv4Results = append(ipv4Results, ip)
+			} else {
+				ipv6Results = append(ipv6Results, ip)
 			}
+		}
 
 		// 如果启用了阿里云DNS，则同步结果
 		if enableAliDNS && len(speedData) > 0 {
@@ -299,6 +343,16 @@ func main() {
 				utils.Red.Printf("同步到阿里云DNS失败: %v\n", err)
 			} else {
 				utils.Green.Println("同步到阿里云DNS成功!")
+			}
+		}
+
+		// 如果启用了Cloudflare DNS，则同步结果
+		if enableCloudflare && len(speedData) > 0 {
+			fmt.Println("\n开始同步结果到Cloudflare DNS...")
+			if err := ddns.SyncCloudflareRecords(ipv4Results, ipv6Results); err != nil {
+				utils.Red.Printf("同步到Cloudflare DNS失败: %v\n", err)
+			} else {
+				utils.Green.Println("同步到Cloudflare DNS成功!")
 			}
 		}
 	}

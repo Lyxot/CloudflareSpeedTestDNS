@@ -21,6 +21,17 @@ type AliDNSConfig struct {
 	TTL             int    `toml:"ttl"`              // TTL
 }
 
+// CloudflareConfig Cloudflare DNS配置
+type CloudflareConfig struct {
+	Enable    bool   `toml:"enable"`    // 是否启用Cloudflare DNS
+	APIToken  string `toml:"api_token"` // Cloudflare API Token
+	ZoneID    string `toml:"zone_id"`   // Cloudflare Zone ID
+	Domain    string `toml:"domain"`    // 域名
+	Subdomain string `toml:"subdomain"` // 子域名
+	Proxied   bool   `toml:"proxied"`   // 是否开启Cloudflare代理
+	TTL       int    `toml:"ttl"`       // TTL，1为自动
+}
+
 // Config 配置文件结构体
 type Config struct {
 	// 延迟测速相关
@@ -57,6 +68,9 @@ type Config struct {
 
 	// 阿里云DNS相关
 	AliDNS AliDNSConfig `toml:"alidns"` // 阿里云DNS配置
+
+	// Cloudflare DNS相关
+	Cloudflare CloudflareConfig `toml:"cloudflare"` // Cloudflare DNS配置
 }
 
 // LoadConfig 从TOML文件加载配置
@@ -160,6 +174,19 @@ func ApplyConfig(config *Config) {
 	// 如果配置文件中启用了阿里云DNS，则覆盖命令行参数
 	if config.AliDNS.Enable {
 		enableAliDNS = true
+	}
+
+	// 设置Cloudflare DNS相关参数
+	ddns.CloudflareConfig.APIToken = config.Cloudflare.APIToken
+	ddns.CloudflareConfig.ZoneID = config.Cloudflare.ZoneID
+	ddns.CloudflareConfig.Domain = config.Cloudflare.Domain
+	ddns.CloudflareConfig.Subdomain = config.Cloudflare.Subdomain
+	ddns.CloudflareConfig.Proxied = config.Cloudflare.Proxied
+	ddns.CloudflareConfig.TTL = config.Cloudflare.TTL
+
+	// 如果配置文件中启用了Cloudflare DNS，则覆盖命令行参数
+	if config.Cloudflare.Enable {
+		enableCloudflare = true
 	}
 
 	// 设置输入输出相关参数
