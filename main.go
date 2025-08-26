@@ -164,8 +164,6 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 }
 
 func main() {
-	task.InitRandSeed() // 置随机数种子
-
 	fmt.Printf("# Lyxot/CloudflareSpeedTestDNS %s \n\n", version)
 
 	// 智能判断文件优先级

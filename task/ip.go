@@ -8,7 +8,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 const defaultInputFile = "ip.txt"
@@ -24,10 +23,6 @@ var (
 	IPv6File = ""
 	IPText   string
 )
-
-func InitRandSeed() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 func isIPv4(ip string) bool {
 	return strings.Contains(ip, ".")
