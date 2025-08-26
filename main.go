@@ -141,7 +141,7 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 		}
 	}
 
-	if task.MinSpeed > 0 && time.Duration(maxDelay)*time.Millisecond == utils.InputMaxDelay {
+	if task.MinSpeed > 0 && maxDelay == 9999 {
 		utils.Yellow.Println("[提示] 在使用 [-sl] 参数时，建议搭配 [-tl] 参数，以避免因凑不够 [-dn] 数量而一直测速...")
 	}
 	utils.InputMaxDelay = time.Duration(maxDelay) * time.Millisecond
