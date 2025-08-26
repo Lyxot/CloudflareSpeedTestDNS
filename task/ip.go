@@ -18,7 +18,11 @@ var (
 	TestAll = false
 	// IPFile is the filename of IP Rangs
 	IPFile = defaultInputFile
-	IPText string
+	// IPv4File is the filename of IPv4 Ranges
+	IPv4File = ""
+	// IPv6File is the filename of IPv6 Ranges
+	IPv6File = ""
+	IPText   string
 )
 
 func InitRandSeed() {
@@ -147,6 +151,26 @@ func (r *IPRanges) chooseIPv6() {
 	}
 }
 
+// IsBothMode 判断是否同时测试IPv4和IPv6
+func IsBothMode() bool {
+	return IPv4File != "" && IPv6File != ""
+}
+
+// IsIPv4Mode 判断是否仅测试IPv4
+func IsIPv4Mode() bool {
+	return IPv4File != "" && IPv6File == ""
+}
+
+// IsIPv6Mode 判断是否仅测试IPv6
+func IsIPv6Mode() bool {
+	return IPv4File == "" && IPv6File != ""
+}
+
+// IsMixedMode 判断是否混合测试IPv4和IPv6
+func IsMixedMode() bool {
+	return IPv4File == "" && IPv6File == "" && IPFile != ""
+}
+
 func loadIPRanges() []*net.IPAddr {
 	ranges := newIPRanges()
 	if IPText != "" { // 从参数中获取 IP 段数据
@@ -164,10 +188,23 @@ func loadIPRanges() []*net.IPAddr {
 			}
 		}
 	} else { // 从文件中获取 IP 段数据
-		if IPFile == "" {
-			IPFile = defaultInputFile
+		// 根据模式选择文件
+		var filename string
+		if IsIPv4Mode() {
+			filename = IPv4File
+		} else if IsIPv6Mode() {
+			filename = IPv6File
+		} else if IsMixedMode() {
+			filename = IPFile
+		} else {
+			// 默认情况，使用IPFile
+			if IPFile == "" {
+				IPFile = defaultInputFile
+			}
+			filename = IPFile
 		}
-		file, err := os.Open(IPFile)
+
+		file, err := os.Open(filename)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -177,6 +214,10 @@ func loadIPRanges() []*net.IPAddr {
 			line := strings.TrimSpace(scanner.Text()) // 去除首尾的空白字符（空格、制表符、换行符等）
 			if line == "" {                           // 跳过空行
 				continue
+			}
+			// 根据当前模式决定是否处理该IP
+			if (IsIPv4Mode() && !isIPv4(line)) || (IsIPv6Mode() && isIPv4(line)) {
+				continue // 如果是IPv4模式但IP是IPv6，或者是IPv6模式但IP是IPv4，则跳过
 			}
 			ranges.parseCIDR(line) // 解析 IP 段，获得 IP、IP 范围、子网掩码
 			if isIPv4(line) {      // 生成要测速的所有 IPv4 / IPv6 地址（单个/随机/全部）

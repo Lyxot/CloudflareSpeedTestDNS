@@ -35,6 +35,8 @@ type Config struct {
 	// 输入输出相关
 	PrintNum int    `toml:"print_num"` // 显示结果数量
 	IPFile   string `toml:"ip_file"`   // IP段数据文件
+	IPv4File string `toml:"ipv4_file"` // IPv4段数据文件
+	IPv6File string `toml:"ipv6_file"` // IPv6段数据文件
 	IPText   string `toml:"ip_text"`   // 指定IP段数据
 	Output   string `toml:"output"`    // 输出结果文件
 
@@ -113,8 +115,22 @@ func ApplyConfig(config *Config) {
 		task.IPFile = config.IPFile
 	}
 
+	if config.IPv4File != "" {
+		task.IPv4File = config.IPv4File
+	}
+
+	if config.IPv6File != "" {
+		task.IPv6File = config.IPv6File
+	}
+
 	if config.IPText != "" {
 		task.IPText = config.IPText
+	}
+
+	// 智能判断文件优先级
+	if config.IPv4File != "" || config.IPv6File != "" {
+		// 如果指定了ipv4_file或ipv6_file，则ip_file参数无效
+		task.IPFile = ""
 	}
 
 	// 设置其他选项

@@ -57,8 +57,12 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 
     -p 10
         显示结果数量；测速后直接显示指定数量的结果，为 0 时不显示结果直接退出；(默认 10 个)
+    -f4 ipv4.txt
+        IPv4段数据文件；如路径含有空格请加上引号；支持其他 CDN IP段；(默认为空)
+    -f6 ipv6.txt
+        IPv6段数据文件；如路径含有空格请加上引号；支持其他 CDN IP段；(默认为空)
     -f ip.txt
-        IP段数据文件；如路径含有空格请加上引号；支持其他 CDN IP段；(默认 ip.txt)
+        IP段数据文件；如路径含有空格请加上引号；支持其他 CDN IP段；(默认 ip.txt，指定f4或f6时该参数无效)
     -ip 1.1.1.1,2.2.2.2/24,2606:4700::/32
         指定IP段数据；直接通过参数指定要测速的 IP 段数据，英文逗号分隔；(默认 空)
     -o result.csv
@@ -98,6 +102,8 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 	flag.Float64Var(&task.MinSpeed, "sl", 0, "下载速度下限")
 
 	flag.IntVar(&utils.PrintNum, "p", 10, "显示结果数量")
+	flag.StringVar(&task.IPv4File, "f4", "", "IPv4段数据文件")
+	flag.StringVar(&task.IPv6File, "f6", "", "IPv6段数据文件")
 	flag.StringVar(&task.IPFile, "f", "ip.txt", "IP段数据文件")
 	flag.StringVar(&task.IPText, "ip", "", "指定IP段数据")
 	flag.StringVar(&utils.Output, "o", "result.csv", "输出结果文件")
@@ -162,13 +168,70 @@ func main() {
 
 	fmt.Printf("# Lyxot/CloudflareSpeedTestDNS %s \n\n", version)
 
-	// 开始延迟测速 + 过滤延迟/丢包
-	pingData := task.NewPing().Run().FilterDelay().FilterLossRate()
-	// 开始下载测速
-	speedData := task.TestDownloadSpeed(pingData)
-	utils.ExportCsv(speedData) // 输出文件
-	speedData.Print()          // 打印结果
-	endPrint()                 // 根据情况选择退出方式（针对 Windows）
+	// 智能判断文件优先级
+	if task.IPv4File != "" || task.IPv6File != "" {
+		// 如果指定了f4或f6，则f参数无效
+		task.IPFile = ""
+	}
+
+	// 检查是否需要同时测试IPv4和IPv6
+	if task.IsBothMode() {
+		// 先测试IPv4
+		// 保存原始文件设置
+		origIPv4File := task.IPv4File
+		origIPv6File := task.IPv6File
+
+		// 仅测试IPv4
+		if task.IPv6File != "" {
+			task.IPv6File = ""
+		}
+		fmt.Println("\n[IPv4] 开始测试IPv4...")
+		// 开始延迟测速 + 过滤延迟/丢包
+		ipv4PingData := task.NewPing().Run().FilterDelay().FilterLossRate()
+		// 开始下载测速
+		ipv4SpeedData := task.TestDownloadSpeed(ipv4PingData)
+		// 输出到IPv4结果文件
+		origOutput := utils.Output
+		if utils.Output != "" {
+			utils.Output = "result_ipv4.csv"
+			utils.ExportCsv(ipv4SpeedData)
+		}
+		// 打印IPv4结果
+		fmt.Println("\n[IPv4] 测试结果:")
+		ipv4SpeedData.Print()
+
+		// 再测试IPv6
+		// 恢复原始文件设置
+		task.IPv4File = origIPv4File
+		task.IPv6File = origIPv6File
+
+		// 仅测试IPv6
+		if task.IPv4File != "" {
+			task.IPv4File = ""
+		}
+		fmt.Println("\n[IPv6] 开始测试IPv6...")
+		// 开始延迟测速 + 过滤延迟/丢包
+		ipv6PingData := task.NewPing().Run().FilterDelay().FilterLossRate()
+		// 开始下载测速
+		ipv6SpeedData := task.TestDownloadSpeed(ipv6PingData)
+		// 输出到IPv6结果文件
+		if origOutput != "" {
+			utils.Output = "result_ipv6.csv"
+			utils.ExportCsv(ipv6SpeedData)
+		}
+		// 打印IPv6结果
+		fmt.Println("\n[IPv6] 测试结果:")
+		ipv6SpeedData.Print()
+	} else {
+		// 开始延迟测速 + 过滤延迟/丢包
+		pingData := task.NewPing().Run().FilterDelay().FilterLossRate()
+		// 开始下载测速
+		speedData := task.TestDownloadSpeed(pingData)
+		utils.ExportCsv(speedData) // 输出文件
+		speedData.Print()          // 打印结果
+	}
+
+	endPrint() // 根据情况选择退出方式（针对 Windows）
 }
 
 // 根据情况选择退出方式（针对 Windows）
