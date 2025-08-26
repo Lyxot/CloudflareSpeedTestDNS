@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/XIU2/CloudflareSpeedTest/task"
-	"github.com/XIU2/CloudflareSpeedTest/utils"
+	"github.com/Lyxot/CloudflareSpeedTestDNS/task"
+	"github.com/Lyxot/CloudflareSpeedTestDNS/utils"
 )
 
 var (
@@ -20,9 +20,9 @@ var (
 func init() {
 	var printVersion bool
 	var help = `
-CloudflareSpeedTest ` + version + `
+CloudflareSpeedTestDNS ` + version + `
 测试各个 CDN 或网站所有 IP 的延迟和速度，获取最快 IP (IPv4+IPv6)！
-https://github.com/XIU2/CloudflareSpeedTest
+https://github.com/Lyxot/CloudflareSpeedTestDNS
 
 参数：
     -n 200
@@ -122,7 +122,7 @@ https://github.com/XIU2/CloudflareSpeedTest
 		fmt.Println("检查版本更新中...")
 		checkUpdate()
 		if versionNew != "" {
-			utils.Yellow.Printf("*** 发现新版本 [%s]！请前往 [https://github.com/XIU2/CloudflareSpeedTest] 更新！ ***", versionNew)
+			utils.Yellow.Printf("*** 发现新版本 [%s]！请前往 [https://github.com/Lyxot/CloudflareSpeedTestDNS] 更新！ ***", versionNew)
 		} else {
 			utils.Green.Println("当前为最新版本 [" + version + "]！")
 		}
@@ -133,7 +133,7 @@ https://github.com/XIU2/CloudflareSpeedTest
 func main() {
 	task.InitRandSeed() // 置随机数种子
 
-	fmt.Printf("# XIU2/CloudflareSpeedTest %s \n\n", version)
+	fmt.Printf("# Lyxot/CloudflareSpeedTestDNS %s \n\n", version)
 
 	// 开始延迟测速 + 过滤延迟/丢包
 	pingData := task.NewPing().Run().FilterDelay().FilterLossRate()

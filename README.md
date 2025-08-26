@@ -1,10 +1,10 @@
-# XIU2/CloudflareSpeedTest
+# Lyxot/CloudflareSpeedTestDNS
 
-[![Go Version](https://img.shields.io/github/go-mod/go-version/XIU2/CloudflareSpeedTest.svg?style=flat-square&label=Go&color=00ADD8&logo=go)](https://github.com/XIU2/CloudflareSpeedTest/)
-[![Release Version](https://img.shields.io/github/v/release/XIU2/CloudflareSpeedTest.svg?style=flat-square&label=Release&color=00ADD8&logo=github)](https://github.com/XIU2/CloudflareSpeedTest/releases/latest)
-[![GitHub license](https://img.shields.io/github/license/XIU2/CloudflareSpeedTest.svg?style=flat-square&label=License&color=00ADD8&logo=github)](https://github.com/XIU2/CloudflareSpeedTest/)
-[![GitHub Star](https://img.shields.io/github/stars/XIU2/CloudflareSpeedTest.svg?style=flat-square&label=Star&color=00ADD8&logo=github)](https://github.com/XIU2/CloudflareSpeedTest/)
-[![GitHub Fork](https://img.shields.io/github/forks/XIU2/CloudflareSpeedTest.svg?style=flat-square&label=Fork&color=00ADD8&logo=github)](https://github.com/XIU2/CloudflareSpeedTest/)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/Lyxot/CloudflareSpeedTestDNS.svg?style=flat-square&label=Go&color=00ADD8&logo=go)](https://github.com/Lyxot/CloudflareSpeedTestDNS/)
+[![Release Version](https://img.shields.io/github/v/release/Lyxot/CloudflareSpeedTestDNS.svg?style=flat-square&label=Release&color=00ADD8&logo=github)](https://github.com/Lyxot/CloudflareSpeedTestDNS/releases/latest)
+[![GitHub license](https://img.shields.io/github/license/Lyxot/CloudflareSpeedTestDNS.svg?style=flat-square&label=License&color=00ADD8&logo=github)](https://github.com/Lyxot/CloudflareSpeedTestDNS/)
+[![GitHub Star](https://img.shields.io/github/stars/Lyxot/CloudflareSpeedTestDNS.svg?style=flat-square&label=Star&color=00ADD8&logo=github)](https://github.com/Lyxot/CloudflareSpeedTestDNS/)
+[![GitHub Fork](https://img.shields.io/github/forks/Lyxot/CloudflareSpeedTestDNS.svg?style=flat-square&label=Fork&color=00ADD8&logo=github)](https://github.com/Lyxot/CloudflareSpeedTestDNS/)
 
 国外很多网站都在使用 Cloudflare CDN，但分配给中国内地访客的 IP 并不友好（延迟高、丢包多、速度慢）。  
 虽然 Cloudflare 公开了所有 [IP 段](https://www.cloudflare.com/zh-cn/ips/) ，但想要在这么多 IP 中找到适合自己的，怕是要累死，于是就有了这个软件。
@@ -18,14 +18,14 @@
 当然了，本项目也支持对 **`其他 CDN / 多个解析 IP 的网站`** 延迟测速，但相对应的下载测速地址需自行寻找。
 
 > [!IMPORTANT]
-> Cloudflare CDN 已**明文禁止代理**方式使用，对于**代理套 CDN** 的自行承担风险，请勿过度依赖 [#382](https://github.com/XIU2/CloudflareSpeedTest/discussions/382) [#383](https://github.com/XIU2/CloudflareSpeedTest/discussions/383)
+> Cloudflare CDN 已**明文禁止代理**方式使用，对于**代理套 CDN** 的自行承担风险，请勿过度依赖 [#382](https://github.com/Lyxot/CloudflareSpeedTestDNS/discussions/382) [#383](https://github.com/Lyxot/CloudflareSpeedTestDNS/discussions/383)
 
 ****
 ## \# 快速使用
 
 ### 下载运行
 
-1. 下载编译好的可执行文件（ [Github Releases](https://github.com/XIU2/CloudflareSpeedTest/releases) / [蓝奏云](https://xiu.lanzoub.com/b0742hkxe) ）并解压。  
+1. 下载编译好的可执行文件（ [Github Releases](https://github.com/Lyxot/CloudflareSpeedTestDNS/releases) / [蓝奏云](https://xiu.lanzoub.com/b0742hkxe) ）并解压。  
 2. 双击运行 `cfst.exe` 文件（Windows 系统），等待测速完成...
 
 <details>
@@ -49,7 +49,7 @@ scoop install dorado/cloudflare-speedtest
 
 ****
 
-以下命令仅为示例，版本号和文件名请前往 [**Releases**](https://github.com/XIU2/CloudflareSpeedTest/releases) 查看。
+以下命令仅为示例，版本号和文件名请前往 [**Releases**](https://github.com/Lyxot/CloudflareSpeedTestDNS/releases) 查看。
 
 ``` yaml
 # 如果是第一次使用，则建议创建新文件夹（后续更新时，跳过该步骤）
@@ -59,13 +59,13 @@ mkdir cfst
 cd cfst
 
 # 下载 CFST 压缩包（自行根据需求替换 URL 中 [版本号] 和 [文件名]）
-wget -N https://github.com/XIU2/CloudflareSpeedTest/releases/download/v2.3.4/cfst_linux_amd64.tar.gz
+wget -N https://github.com/Lyxot/CloudflareSpeedTestDNS/releases/download/v2.3.4/cfst_linux_amd64.tar.gz
 # 如果你是在国内网络环境中下载，那么请使用下面这几个镜像加速之一：
-# wget -N https://ghfast.top/https://github.com/XIU2/CloudflareSpeedTest/releases/download/v2.3.4/cfst_linux_arm64.tar.gz
-# wget -N https://wget.la/https://github.com/XIU2/CloudflareSpeedTest/releases/download/v2.3.4/cfst_linux_arm64.tar.gz
-# wget -N https://ghproxy.net/https://github.com/XIU2/CloudflareSpeedTest/releases/download/v2.3.4/cfst_linux_arm64.tar.gz
-# wget -N https://gh-proxy.com/https://github.com/XIU2/CloudflareSpeedTest/releases/download/v2.3.4/cfst_linux_arm64.tar.gz
-# wget -N https://hk.gh-proxy.com/https://github.com/XIU2/CloudflareSpeedTest/releases/download/v2.3.4/cfst_linux_arm64.tar.gz
+# wget -N https://ghfast.top/https://github.com/Lyxot/CloudflareSpeedTestDNS/releases/download/v2.3.4/cfst_linux_arm64.tar.gz
+# wget -N https://wget.la/https://github.com/Lyxot/CloudflareSpeedTestDNS/releases/download/v2.3.4/cfst_linux_arm64.tar.gz
+# wget -N https://ghproxy.net/https://github.com/Lyxot/CloudflareSpeedTestDNS/releases/download/v2.3.4/cfst_linux_arm64.tar.gz
+# wget -N https://gh-proxy.com/https://github.com/Lyxot/CloudflareSpeedTestDNS/releases/download/v2.3.4/cfst_linux_arm64.tar.gz
+# wget -N https://hk.gh-proxy.com/https://github.com/Lyxot/CloudflareSpeedTestDNS/releases/download/v2.3.4/cfst_linux_arm64.tar.gz
 # 如果下载失败的话，尝试删除 -N 参数（如果是为了更新，则记得提前删除旧压缩包 rm cfst_linux_amd64.tar.gz ）
 
 # 解压（不需要删除旧文件，会直接覆盖，自行根据需求替换 文件名）
@@ -88,10 +88,10 @@ chmod +x cfst
 
 ****
 
-> _在**手机**上独立运行 CFST 测速的简单教程：**[Android](https://github.com/XIU2/CloudflareSpeedTest/discussions/61)、[Android APP](https://github.com/xianshenglu/cloudflare-ip-tester-app)、[IOS](https://github.com/XIU2/CloudflareSpeedTest/discussions/321)**_
+> _在**手机**上独立运行 CFST 测速的简单教程：**[Android](https://github.com/Lyxot/CloudflareSpeedTestDNS/discussions/61)、[Android APP](https://github.com/xianshenglu/cloudflare-ip-tester-app)、[IOS](https://github.com/Lyxot/CloudflareSpeedTestDNS/discussions/321)**_
 
 > [!NOTE]
-> 注意！本软件仅适用于网站，**不支持给使用 UDP 协议的 Cloudflare WARP 优选 IP**，具体见：[#392](https://github.com/XIU2/CloudflareSpeedTest/discussions/392)
+> 注意！本软件仅适用于网站，**不支持给使用 UDP 协议的 Cloudflare WARP 优选 IP**，具体见：[#392](https://github.com/Lyxot/CloudflareSpeedTestDNS/discussions/392)
 
 ### 结果示例
 
@@ -139,7 +139,7 @@ IP 地址,已发送,已接收,丢包率,平均延迟,下载速度(MB/s),地区�
 ```
 
 > [!NOTE]
-> _如果你发现**下载速度为 0.00**，那么可以用**调试模式 `-debug`** 排查一下，详见：[**# 下载测速都是 0.00 ？**](https://github.com/XIU2/CloudflareSpeedTest#-%E4%B8%8B%E8%BD%BD%E6%B5%8B%E9%80%9F%E9%83%BD%E6%98%AF-000-)_
+> _如果你发现**下载速度为 0.00**，那么可以用**调试模式 `-debug`** 排查一下，详见：[**# 下载测速都是 0.00 ？**](https://github.com/Lyxot/CloudflareSpeedTestDNS#-%E4%B8%8B%E8%BD%BD%E6%B5%8B%E9%80%9F%E9%83%BD%E6%98%AF-000-)_
 
 > _大家可以按自己需求，对完整结果**进一步筛选处理**，或者去看一看进阶使用**指定过滤条件**！_
 
@@ -151,9 +151,9 @@ IP 地址,已发送,已接收,丢包率,平均延迟,下载速度(MB/s),地区�
 ```Dart
 C:\>cfst.exe -h
 
-CloudflareSpeedTest vX.X.X
+CloudflareSpeedTestDNS vX.X.X
 测试各个 CDN 或网站所有 IP 的延迟和速度，获取最快 IP (IPv4+IPv6)！
-https://github.com/XIU2/CloudflareSpeedTest
+https://github.com/Lyxot/CloudflareSpeedTestDNS
 
 参数：
     -n 200
@@ -232,7 +232,7 @@ https://github.com/XIU2/CloudflareSpeedTest
 > 该示例把常用参数都给加上了，即为：`-tll 40 -tl 150 -sl 1 -dn 5`，最后输出结果如下：
 
 ```python
-# XIU2/CloudflareSpeedTest vX.X.X
+# Lyxot/CloudflareSpeedTestDNS vX.X.X
 
 开始延迟测速（模式：TCP, 端口：443, 范围：40 ~ 150 ms, 丢包：1.00)
 321 / 321 [-----------------------------------------------------------] 可用: 30
@@ -380,7 +380,7 @@ cfst.exe -f ipv6.txt
 cfst.exe -ip 1.1.1.1,2606:4700::/32
 ```
 
-> 测速 IPv6 时，可能会注意到每次测速数量都不一样，了解原因： [#120](https://github.com/XIU2/CloudflareSpeedTest/issues/120)  
+> 测速 IPv6 时，可能会注意到每次测速数量都不一样，了解原因： [#120](https://github.com/Lyxot/CloudflareSpeedTestDNS/issues/120)  
 > 因为 IPv6 太多（以亿为单位），且绝大部分 IP 段压根未启用，所以我只扫了一部分可用的 IPv6 段写到 `ipv6.txt` 文件中，有兴趣的可以自行扫描增删，ASN 数据源来自：[bgp.he.net](https://bgp.he.net/AS13335#_prefixes6)
 
 </details>
@@ -749,7 +749,7 @@ cfst.exe -f 1.txt
 6. `... tls: failed to verify certificate: x509: certificate has expired or is not yet valid: current time ...`  
 这种是 **SSL 证书过期了或者尚未到有效时间**，除了这个原因外，也可能是和上面 4、5 的原因一样（这 4、5、6 三种报错可能会同时出现在同一个服务器 IP 上）
 7. `... tls: failed to verify certificate: x509: certificate signed by unknown authority.`  
-这种代表**系统证书配置有问题**，导致 TLS 握手时无法验证证书，目前只在 Termux 内遇到过（解决方法见：https://github.com/XIU2/CloudflareSpeedTest/discussions/61 帖子末尾）
+这种代表**系统证书配置有问题**，导致 TLS 握手时无法验证证书，目前只在 Termux 内遇到过（解决方法见：https://github.com/Lyxot/CloudflareSpeedTestDNS/discussions/61 帖子末尾）
 
 > 如果你遇到了其他报错原因，且翻译后还是不懂，可以发 Issues 或 Discussions 询问，我也会更新到这里。  
 > 但注意，发 Issues 或 Discussions 询问时，请记得带上**调试模式下 CFST 输出的完整内容（或者完整截图）**。
@@ -760,7 +760,7 @@ cfst.exe -f 1.txt
 
 **一、下载测速地址有问题**：
 
-先去 [#490](https://github.com/XIU2/CloudflareSpeedTest/discussions/490) 找几个其他的下载测速地址都试试。
+先去 [#490](https://github.com/Lyxot/CloudflareSpeedTestDNS/discussions/490) 找几个其他的下载测速地址都试试。
 
 如果其中有能下载测速出结果的，则就代表你之前使用的下载测速地址有问题（注意，目前默认下载测速地址仅为一个带负载均衡轮询的重定向链接，会自动重定向到上面帖子里大家分享的公益下载测速地址，而这些地址在**不同地区的可用性可能有差异**，因此可能出现之前不行现在又正常的情况，如果**想要稳定，建议自建**，上面帖子写了几种自建方法）。
 
@@ -790,7 +790,7 @@ cfst.exe -f 1.txt
 
 我以前说过，开发该软件项目的目的就是为了通过**改 Hosts 的方式来加速访问使用 Cloudflare CDN 的网站**。
 
-但就如 [**#8**](https://github.com/XIU2/CloudflareSpeedTest/issues/8) 所说，一个个添加域名到 Hosts 实在**太麻烦**了，于是我就找到了个**一劳永逸**的办法！可以看这个 [**还在一个个添加 Hosts？完美本地加速所有使用 Cloudflare CDN 的网站方法来了！**](https://github.com/XIU2/CloudflareSpeedTest/discussions/71) 和另一个[依靠本地 DNS 服务来修改域名解析 IP 为自选 IP](https://github.com/XIU2/CloudflareSpeedTest/discussions/317) 的教程。
+但就如 [**#8**](https://github.com/Lyxot/CloudflareSpeedTestDNS/issues/8) 所说，一个个添加域名到 Hosts 实在**太麻烦**了，于是我就找到了个**一劳永逸**的办法！可以看这个 [**还在一个个添加 Hosts？完美本地加速所有使用 Cloudflare CDN 的网站方法来了！**](https://github.com/Lyxot/CloudflareSpeedTestDNS/discussions/71) 和另一个[依靠本地 DNS 服务来修改域名解析 IP 为自选 IP](https://github.com/Lyxot/CloudflareSpeedTestDNS/discussions/317) 的教程。
 
 ****
 
@@ -798,14 +798,14 @@ cfst.exe -f 1.txt
 
 考虑到很多人获得最快 Cloudflare CDN IP 后，需要替换 Hosts 文件中的 IP。
 
-可以看这个 [**Issues**](https://github.com/XIU2/CloudflareSpeedTest/discussions/312) 获取 **Windows/Linux 自动更新 Hosts 脚本**！
+可以看这个 [**Issues**](https://github.com/Lyxot/CloudflareSpeedTestDNS/discussions/312) 获取 **Windows/Linux 自动更新 Hosts 脚本**！
 
 ****
 
 ## 问题反馈
 
-如果你遇到什么问题，可以先去 [**Issues**](https://github.com/XIU2/CloudflareSpeedTest/issues)、[Discussions](https://github.com/XIU2/CloudflareSpeedTest/discussions) 里看看是否有别人问过了（记得去看下  [**Closed**](https://github.com/XIU2/CloudflareSpeedTest/issues?q=is%3Aissue+is%3Aclosed) 的）。  
-如果没找到类似问题，请新开个 [**Issues**](https://github.com/XIU2/CloudflareSpeedTest/issues/new) 来告诉我！
+如果你遇到什么问题，可以先去 [**Issues**](https://github.com/Lyxot/CloudflareSpeedTestDNS/issues)、[Discussions](https://github.com/Lyxot/CloudflareSpeedTestDNS/discussions) 里看看是否有别人问过了（记得去看下  [**Closed**](https://github.com/Lyxot/CloudflareSpeedTestDNS/issues?q=is%3Aissue+is%3Aclosed) 的）。  
+如果没找到类似问题，请新开个 [**Issues**](https://github.com/Lyxot/CloudflareSpeedTestDNS/issues/new) 来告诉我！
 
 > [!NOTE]
 > **注意**！_与 CFST 本身 `反馈问题、功能建议` 无关的，请前往项目内部 论坛 讨论（顶部的 `💬 Discussions`_  
@@ -821,16 +821,16 @@ cfst.exe -f 1.txt
 ## 衍生项目
 
 - _https://github.com/xianshenglu/cloudflare-ip-tester-app_  
-_**CFST 安卓版 APP [#202](https://github.com/XIU2/CloudflareSpeedTest/discussions/320)**_
+_**CFST 安卓版 APP [#202](https://github.com/Lyxot/CloudflareSpeedTestDNS/discussions/320)**_
 
 - _https://github.com/mingxiaoyu/luci-app-cloudflarespeedtest_  
-_**CFST OpenWrt 路由器插件版 [#174](https://github.com/XIU2/CloudflareSpeedTest/discussions/319)**_
+_**CFST OpenWrt 路由器插件版 [#174](https://github.com/Lyxot/CloudflareSpeedTestDNS/discussions/319)**_
 
 - _https://github.com/immortalwrt-collections/openwrt-cdnspeedtest_  
-_**CFST OpenWrt 原生编译版本 [#64](https://github.com/XIU2/CloudflareSpeedTest/discussions/64)**_
+_**CFST OpenWrt 原生编译版本 [#64](https://github.com/Lyxot/CloudflareSpeedTestDNS/discussions/64)**_
 
 - _https://github.com/hoseinnikkhah/CloudflareSpeedTest-English_  
-_**English language version of CFST (Text language differences only) [#64](https://github.com/XIU2/CloudflareSpeedTest/issues/68)**_
+_**English language version of CFST (Text language differences only) [#64](https://github.com/Lyxot/CloudflareSpeedTestDNS/issues/68)**_
 
 > _此处仅收集了在本项目中宣传过的部分 CFST 相关衍生项目，如果有遗漏可以告诉我~_
 
@@ -856,7 +856,7 @@ _**English language version of CFST (Text language differences only) [#64](https
 
 ```bash
 go build -ldflags "-s -w -X main.version=v1.0.0"
-# 在 CloudflareSpeedTest 目录中通过命令行（例如 CMD、Bat 脚本）运行该命令，即可编译一个可在和当前设备同样系统、位数、架构的环境下运行的二进制程序（Go 会自动检测你的系统位数、架构）且版本号为 v1.0.0
+# 在 CloudflareSpeedTestDNS 目录中通过命令行（例如 CMD、Bat 脚本）运行该命令，即可编译一个可在和当前设备同样系统、位数、架构的环境下运行的二进制程序（Go 会自动检测你的系统位数、架构）且版本号为 v1.0.0
 ```
 
 如果想要在 Windows 64位系统下编译**其他系统、架构、位数**，那么需要指定 **GOOS** 和 **GOARCH** 变量。
