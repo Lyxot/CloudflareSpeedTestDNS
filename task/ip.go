@@ -24,7 +24,8 @@ var (
 	IPText   string
 )
 
-func isIPv4(ip string) bool {
+// IsIPv4 判断是否为IPv4地址
+func IsIPv4(ip string) bool {
 	return strings.Contains(ip, ".")
 }
 
@@ -52,7 +53,7 @@ func newIPRanges() *IPRanges {
 func (r *IPRanges) fixIP(ip string) string {
 	// 如果不含有 '/' 则代表不是 IP 段，而是一个单独的 IP，因此需要加上 /32 /128 子网掩码
 	if i := strings.IndexByte(ip, '/'); i < 0 {
-		if isIPv4(ip) {
+		if IsIPv4(ip) {
 			r.mask = "/32"
 		} else {
 			r.mask = "/128"
@@ -176,7 +177,7 @@ func loadIPRanges() []*net.IPAddr {
 				continue
 			}
 			ranges.parseCIDR(IP) // 解析 IP 段，获得 IP、IP 范围、子网掩码
-			if isIPv4(IP) {      // 生成要测速的所有 IPv4 / IPv6 地址（单个/随机/全部）
+			if IsIPv4(IP) {      // 生成要测速的所有 IPv4 / IPv6 地址（单个/随机/全部）
 				ranges.chooseIPv4()
 			} else {
 				ranges.chooseIPv6()
@@ -211,11 +212,11 @@ func loadIPRanges() []*net.IPAddr {
 				continue
 			}
 			// 根据当前模式决定是否处理该IP
-			if (IsIPv4Mode() && !isIPv4(line)) || (IsIPv6Mode() && isIPv4(line)) {
+			if (IsIPv4Mode() && !IsIPv4(line)) || (IsIPv6Mode() && IsIPv4(line)) {
 				continue // 如果是IPv4模式但IP是IPv6，或者是IPv6模式但IP是IPv4，则跳过
 			}
 			ranges.parseCIDR(line) // 解析 IP 段，获得 IP、IP 范围、子网掩码
-			if isIPv4(line) {      // 生成要测速的所有 IPv4 / IPv6 地址（单个/随机/全部）
+			if IsIPv4(line) {      // 生成要测速的所有 IPv4 / IPv6 地址（单个/随机/全部）
 				ranges.chooseIPv4()
 			} else {
 				ranges.chooseIPv6()

@@ -90,3 +90,26 @@ test_all = false
 
 # 调试输出模式 (默认 false)
 debug = false
+
+#######################
+# 阿里云DNS相关参数
+#######################
+
+[alidns]
+# 是否启用阿里云DNS (默认 false)
+enable = false
+
+# 阿里云AccessKeyID
+accesskey_id = ""
+
+# 阿里云AccessKeySecret
+accesskey_secret = ""
+
+# 域名
+domain = "example.com"
+
+# 子域名
+subdomain = "www"
+
+# TTL (默认 600)
+ttl = 600

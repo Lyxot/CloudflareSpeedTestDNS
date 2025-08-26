@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/Lyxot/CloudflareSpeedTestDNS/ddns"
 	"github.com/Lyxot/CloudflareSpeedTestDNS/task"
 	"github.com/Lyxot/CloudflareSpeedTestDNS/utils"
 )
@@ -16,6 +17,7 @@ import (
 var (
 	version, versionNew string
 	configFile          string
+	enableAliDNS        bool
 )
 
 func init() {
@@ -73,6 +75,19 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
     -allip
         测速全部的IP；对 IP 段中的每个 IP (仅支持 IPv4) 进行测速；(默认 每个 /24 段随机测速一个 IP)
 
+    -alidns
+        启用阿里云DNS更新；测速完成后将结果更新到阿里云DNS；(默认 关闭)
+    -alidns-key
+        阿里云AccessKeyID；用于访问阿里云API
+    -alidns-secret
+        阿里云AccessKeySecret；用于访问阿里云API
+    -alidns-domain
+        阿里云域名；需要更新的域名
+    -alidns-subdomain
+        阿里云子域名（如 www）
+    -alidns-ttl
+        阿里云TTL；域名解析记录的TTL值（默认 600）
+
     -debug
         调试输出模式；会在一些非预期情况下输出更多日志以便判断原因；(默认 关闭)
 
@@ -112,6 +127,12 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 	flag.BoolVar(&task.TestAll, "allip", false, "测速全部 IP")
 
 	flag.BoolVar(&utils.Debug, "debug", false, "调试输出模式")
+	flag.BoolVar(&enableAliDNS, "alidns", false, "启用阿里云DNS更新")
+	flag.StringVar(&ddns.AliDNSConfig.AccessKeyID, "alidns-key", "", "阿里云AccessKeyID")
+	flag.StringVar(&ddns.AliDNSConfig.AccessKeySecret, "alidns-secret", "", "阿里云AccessKeySecret")
+	flag.StringVar(&ddns.AliDNSConfig.Domain, "alidns-domain", "", "阿里云域名")
+	flag.StringVar(&ddns.AliDNSConfig.Subdomain, "alidns-subdomain", "", "阿里云子域名")
+	flag.IntVar(&ddns.AliDNSConfig.TTL, "alidns-ttl", 600, "阿里云TTL")
 
 	flag.StringVar(&configFile, "c", "", "指定TOML配置文件")
 	flag.BoolVar(&printVersion, "v", false, "打印程序版本")
@@ -174,6 +195,7 @@ func main() {
 
 	// 检查是否需要同时测试IPv4和IPv6
 	if task.IsBothMode() {
+
 		// 先测试IPv4
 		// 保存原始文件设置
 		origIPv4File := task.IPv4File
@@ -198,6 +220,21 @@ func main() {
 		fmt.Println("\n[IPv4] 测试结果:")
 		ipv4SpeedData.Print()
 
+		ipv4Results := []string{}
+			for i := 0; i < utils.PrintNum && i < len(ipv4SpeedData); i++ {
+				ipv4Results = append(ipv4Results, ipv4SpeedData[i].IP.String())
+			}
+
+		// 如果启用了阿里云DNS，则同步结果
+		if enableAliDNS && len(ipv4Results) > 0 {
+			fmt.Println("\n开始同步结果到阿里云DNS...")
+			if err := ddns.SyncDNSRecords(ipv4Results, []string{}); err != nil {
+				utils.Red.Printf("同步到阿里云DNS失败: %v\n", err)
+			} else {
+				utils.Green.Println("同步到阿里云DNS成功!")
+			}
+		}
+
 		// 再测试IPv6
 		// 恢复原始文件设置
 		task.IPv4File = origIPv4File
@@ -220,6 +257,21 @@ func main() {
 		// 打印IPv6结果
 		fmt.Println("\n[IPv6] 测试结果:")
 		ipv6SpeedData.Print()
+
+		ipv6Results := []string{}
+			for i := 0; i < utils.PrintNum && i < len(ipv6SpeedData); i++ {
+				ipv6Results = append(ipv6Results, ipv6SpeedData[i].IP.String())
+			}
+
+		// 如果启用了阿里云DNS，则同步结果
+		if enableAliDNS && len(ipv6Results) > 0 {
+			fmt.Println("\n开始同步结果到阿里云DNS...")
+			if err := ddns.SyncDNSRecords([]string{}, ipv6Results); err != nil {
+				utils.Red.Printf("同步到阿里云DNS失败: %v\n", err)
+			} else {
+				utils.Green.Println("同步到阿里云DNS成功!")
+			}
+		}
 	} else {
 		// 开始延迟测速 + 过滤延迟/丢包
 		pingData := task.NewPing().Run().FilterDelay().FilterLossRate()
@@ -227,6 +279,28 @@ func main() {
 		speedData := task.TestDownloadSpeed(pingData)
 		utils.ExportCsv(speedData) // 输出文件
 		speedData.Print()          // 打印结果
+		
+			// 根据结果类型分类
+			ipv4Results := []string{}
+			ipv6Results := []string{}
+			for i := 0; i < utils.PrintNum && i < len(speedData); i++ {
+				ip := speedData[i].IP.String()
+				if task.IsIPv4(ip) {
+					ipv4Results = append(ipv4Results, ip)
+				} else {
+					ipv6Results = append(ipv6Results, ip)
+				}
+			}
+
+		// 如果启用了阿里云DNS，则同步结果
+		if enableAliDNS && len(speedData) > 0 {
+			fmt.Println("\n开始同步结果到阿里云DNS...")
+			if err := ddns.SyncDNSRecords(ipv4Results, ipv6Results); err != nil {
+				utils.Red.Printf("同步到阿里云DNS失败: %v\n", err)
+			} else {
+				utils.Green.Println("同步到阿里云DNS成功!")
+			}
+		}
 	}
 
 	endPrint() // 根据情况选择退出方式（针对 Windows）

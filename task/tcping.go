@@ -89,7 +89,7 @@ func (p *Ping) start(ip *net.IPAddr) {
 func (p *Ping) tcping(ip *net.IPAddr) (bool, time.Duration) {
 	startTime := time.Now()
 	var fullAddress string
-	if isIPv4(ip.String()) {
+	if IsIPv4(ip.String()) {
 		fullAddress = fmt.Sprintf("%s:%d", ip.String(), TCPPort)
 	} else {
 		fullAddress = fmt.Sprintf("[%s]:%d", ip.String(), TCPPort)

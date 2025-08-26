@@ -6,9 +6,20 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/Lyxot/CloudflareSpeedTestDNS/ddns"
 	"github.com/Lyxot/CloudflareSpeedTestDNS/task"
 	"github.com/Lyxot/CloudflareSpeedTestDNS/utils"
 )
+
+// AliDNSConfig 阿里云DNS配置
+type AliDNSConfig struct {
+	Enable          bool   `toml:"enable"`           // 是否启用阿里云DNS
+	AccessKeyID     string `toml:"accesskey_id"`     // 阿里云AccessKeyID
+	AccessKeySecret string `toml:"accesskey_secret"` // 阿里云AccessKeySecret
+	Domain          string `toml:"domain"`           // 域名
+	Subdomain       string `toml:"subdomain"`        // 子域名
+	TTL             int    `toml:"ttl"`              // TTL
+}
 
 // Config 配置文件结构体
 type Config struct {
@@ -43,6 +54,9 @@ type Config struct {
 	// 其他选项
 	TestAll bool `toml:"test_all"` // 测速全部IP
 	Debug   bool `toml:"debug"`    // 调试输出模式
+
+	// 阿里云DNS相关
+	AliDNS AliDNSConfig `toml:"alidns"` // 阿里云DNS配置
 }
 
 // LoadConfig 从TOML文件加载配置
@@ -135,6 +149,18 @@ func ApplyConfig(config *Config) {
 
 	// 设置其他选项
 	task.TestAll = config.TestAll
+
+	// 设置阿里云DNS相关参数
+	ddns.AliDNSConfig.AccessKeyID = config.AliDNS.AccessKeyID
+	ddns.AliDNSConfig.AccessKeySecret = config.AliDNS.AccessKeySecret
+	ddns.AliDNSConfig.Domain = config.AliDNS.Domain
+	ddns.AliDNSConfig.Subdomain = config.AliDNS.Subdomain
+	ddns.AliDNSConfig.TTL = config.AliDNS.TTL
+
+	// 如果配置文件中启用了阿里云DNS，则覆盖命令行参数
+	if config.AliDNS.Enable {
+		enableAliDNS = true
+	}
 
 	// 设置输入输出相关参数
 	if config.PrintNum >= 0 {
