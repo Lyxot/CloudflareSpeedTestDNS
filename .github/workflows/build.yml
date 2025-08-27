@@ -1,0 +1,90 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: darwin
+            goarch: amd64
+            artifact_name: CloudflareSpeedTestDNS_darwin_amd64
+          - goos: darwin
+            goarch: arm64
+            artifact_name: CloudflareSpeedTestDNS_darwin_arm64
+          - goos: linux
+            goarch: "386"
+            artifact_name: CloudflareSpeedTestDNS_linux_386
+          - goos: linux
+            goarch: amd64
+            artifact_name: CloudflareSpeedTestDNS_linux_amd64
+          - goos: linux
+            goarch: arm64
+            artifact_name: CloudflareSpeedTestDNS_linux_arm64
+          - goos: linux
+            goarch: arm
+            goarm: "7"
+            artifact_name: CloudflareSpeedTestDNS_linux_armv7
+          - goos: linux
+            goarch: arm
+            artifact_name: CloudflareSpeedTestDNS_linux_arm
+          - goos: linux
+            goarch: loong64
+            artifact_name: CloudflareSpeedTestDNS_linux_loong64
+          - goos: linux
+            goarch: riscv64
+            artifact_name: CloudflareSpeedTestDNS_linux_riscv64
+          - goos: linux
+            goarch: mips
+            gomips: softfloat
+            artifact_name: CloudflareSpeedTestDNS_linux_mips
+          - goos: linux
+            goarch: mips64
+            gomips: softfloat
+            artifact_name: CloudflareSpeedTestDNS_linux_mips64
+          - goos: linux
+            goarch: mipsle
+            gomips: softfloat
+            artifact_name: CloudflareSpeedTestDNS_linux_mipsle
+          - goos: linux
+            goarch: mips64le
+            gomips: softfloat
+            artifact_name: CloudflareSpeedTestDNS_linux_mips64le
+          - goos: windows
+            goarch: "386"
+            artifact_name: CloudflareSpeedTestDNS_windows_386.exe
+          - goos: windows
+            goarch: amd64
+            artifact_name: CloudflareSpeedTestDNS_windows_amd64.exe
+          - goos: windows
+            goarch: arm64
+            artifact_name: CloudflareSpeedTestDNS_windows_arm64.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+          GOMIPS: ${{ matrix.gomips }}
+        run: go build -v -o ${{ matrix.artifact_name }} -ldflags="-s -w -X main.version=v0.0.0-dev"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}
