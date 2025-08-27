@@ -189,6 +189,7 @@ func (s DownloadSpeedSet) FilterIPv4() []IPData {
 				LossRate: data.getLossRate(),
 				Delay:    int64(data.Delay / time.Millisecond),
 				Speed:    data.DownloadSpeed / 1024 / 1024, // 转为 MB/s
+				Colo:     data.Colo,
 			})
 		}
 	}
@@ -208,6 +209,7 @@ func (s DownloadSpeedSet) FilterIPv6() []IPData {
 				LossRate: data.getLossRate(),
 				Delay:    int64(data.Delay / time.Millisecond),
 				Speed:    data.DownloadSpeed / 1024 / 1024, // 转为 MB/s
+				Colo:     data.Colo,
 			})
 		}
 	}
@@ -222,6 +224,7 @@ type IPData struct {
 	LossRate float32 // 丢包率
 	Delay    int64   // 延迟（毫秒）
 	Speed    float64 // 下载速度（MB/s）
+	Colo	 string  // 地区码
 }
 
 func (s DownloadSpeedSet) Print() {

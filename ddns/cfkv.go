@@ -98,19 +98,24 @@ func SyncCloudflareKV(ipv4Data, ipv6Data []utils.IPData) error {
 }
 
 // buildKVDataString 构建KV数据字符串
-// 格式: {IP地址},{已发送ping包},{已接收ping包},{丢包率},{平均延迟},{下载速度}&{下一条数据}&...
+// 格式: {IP地址},{已发送ping包},{已接收ping包},{丢包率},{平均延迟},{下载速度},{地区码}&{下一条数据}&...
 func buildKVDataString(ipData []utils.IPData) string {
 	var dataItems []string
 
 	for _, data := range ipData {
-		// 构建数据项: IP,发包数,收包数,丢包率,平均延迟,下载速度
-		item := fmt.Sprintf("%s,%d,%d,%.2f,%d,%.2f",
+		// 构建数据项: IP,发包数,收包数,丢包率,平均延迟,下载速度,地区码
+		colo := "N/A"
+		if data.Colo != "" {
+			colo = data.Colo
+		}
+		item := fmt.Sprintf("%s,%d,%d,%.2f,%d,%.2f,%s",
 			data.IP,
 			data.Packets,
 			data.Received,
 			data.LossRate*100, // 转换为百分比
 			data.Delay,        // 毫秒
-			data.Speed)        // MB/s
+			data.Speed,        // MB/s
+			colo)              // 如果地区码为空，则设置为"N/A"
 		dataItems = append(dataItems, item)
 	}
 
