@@ -179,3 +179,23 @@ account_id = ""
 
 # Cloudflare KV Namespace ID
 namespace_id = ""
+
+#######################
+# Cron 定时任务相关参数
+#######################
+
+[cron]
+# 是否启用定时任务 (默认 false)
+enable = false
+
+# 延迟阈值(毫秒) (默认 9999 ms)
+latency_threshold = 9999
+
+# 丢包率阈值 (默认 1.0)
+loss_rate_threshold = 1.0
+
+# 检测间隔(分钟) (默认 30)
+check_interval = 30
+
+# 强制刷新间隔(小时) (默认 24)
+test_interval = 24

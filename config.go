@@ -50,6 +50,15 @@ type CloudflareKVConfig struct {
 	NamespaceID string `toml:"namespace_id"` // Cloudflare KV Namespace ID
 }
 
+// CronConfig Cron 定时任务相关参数
+type CronConfig struct {
+	Enable            bool    `toml:"enable"`
+	LatencyThreshold  int     `toml:"latency_threshold"`
+	LossRateThreshold float64 `toml:"loss_rate_threshold"`
+	CheckInterval     int     `toml:"check_interval"`
+	TestInterval      int     `toml:"test_interval"`
+}
+
 // Config 配置文件结构体
 type Config struct {
 	// 延迟测速相关
@@ -95,6 +104,9 @@ type Config struct {
 
 	// Cloudflare KV相关
 	CFKV CloudflareKVConfig `toml:"cfkv"` // Cloudflare KV配置
+
+	// Cron 定时任务相关
+	Cron CronConfig `toml:"cron"`
 }
 
 // LoadConfig 从TOML文件加载配置
@@ -259,5 +271,22 @@ func ApplyConfig(config *Config) {
 
 	if config.MaxLossRate >= 0 && config.MaxLossRate <= 1 {
 		utils.InputMaxLossRate = float32(config.MaxLossRate)
+	}
+
+	// 设置Cron定时任务相关参数
+	if config.Cron.Enable {
+		enableCron = true
+		if config.Cron.LatencyThreshold > 0 {
+			latencyThreshold = time.Duration(config.Cron.LatencyThreshold) * time.Millisecond
+		}
+		if config.Cron.LossRateThreshold >= 0 && config.Cron.LossRateThreshold <= 1 {
+			lossRateThreshold = float32(config.Cron.LossRateThreshold)
+		}
+		if config.Cron.CheckInterval > 0 {
+			checkInterval = time.Duration(config.Cron.CheckInterval) * time.Minute
+		}
+		if config.Cron.TestInterval > 0 {
+			testInterval = time.Duration(config.Cron.TestInterval) * time.Hour
+		}
 	}
 }

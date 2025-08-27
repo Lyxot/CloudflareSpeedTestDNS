@@ -21,6 +21,12 @@ var (
 	enableCloudflare    bool
 	enableCFKV          bool
 	enableDNSPod        bool
+
+	enableCron          bool
+	latencyThreshold    time.Duration
+	lossRateThreshold   float32
+	checkInterval       time.Duration
+	testInterval        time.Duration
 )
 
 func init() {
@@ -253,12 +259,62 @@ func main() {
 		task.IPFile = ""
 	}
 
-	speedTest() // 开始测速
-
-	endPrint() // 根据情况选择退出方式（针对 Windows）
+	if enableCron {
+		cron() // 定时任务
+	} else {
+		speedTest() // 开始测速
+		endPrint() // 根据情况选择退出方式（针对 Windows）
+	}
 }
 
-func speedTest() {
+func cron() {
+	fmt.Println("\n定时任务已启用")
+	ipData := speedTest()
+
+	// 设置定时器
+	testTicker := time.NewTicker(testInterval)
+	checkTicker := time.NewTicker(checkInterval)
+
+	for {
+		select {
+		case <-testTicker.C:
+			fmt.Println("\n强制刷新任务开始...")
+			ipData = speedTest()
+		case <-checkTicker.C:
+			fmt.Println("\n开始检查延迟和丢包率...")
+			// 拼接 IP 段数据
+			ipText := ""
+			for _, ip := range ipData {
+				ipText += ip + ","
+			}
+			// 保存原始设置
+			origIPText := task.IPText
+			origMaxDelay := utils.InputMaxDelay
+			origMaxLossRate := utils.InputMaxLossRate
+
+			task.IPText = ipText
+			utils.InputMaxDelay = latencyThreshold
+			utils.InputMaxLossRate = lossRateThreshold
+			pingData := task.NewPing().Run().FilterDelay().FilterLossRate()
+			
+			// 恢复原始设置
+			task.IPText = origIPText
+			utils.InputMaxDelay = origMaxDelay
+			utils.InputMaxLossRate = origMaxLossRate
+
+			if len(pingData) != len(ipData) {
+				fmt.Println("\n延迟或丢包率超过阈值，开始新一轮测速...")
+				ipData = speedTest()
+				testTicker.Reset(testInterval)
+			} else {
+				fmt.Println("\n延迟和丢包率在阈值范围内")
+			}
+		}
+	}
+}
+
+func speedTest() []string {
+	ipData := []string{}
 	if task.IsBothMode() {
 		// 保存原始文件设置
 		origIPv4File := task.IPv4File
@@ -270,7 +326,7 @@ func speedTest() {
 		task.IPv6File = ""
 		utils.Output = utils.GetFilenameWithSuffix(originOutput, "ipv4")
 		ipv4SpeedData := singleSpeedTest() // 开始延迟测速 + 过滤延迟/丢包
-		ddnsSync(ipv4SpeedData)      // 同步到DNS
+		ipData = append(ipData, ddnsSync(ipv4SpeedData)...)      // 同步到DNS
 
 		// 测试IPv6
 		fmt.Println("\n[IPv6] 开始测试IPv6...")
@@ -278,15 +334,16 @@ func speedTest() {
 		task.IPv6File = origIPv6File
 		utils.Output = utils.GetFilenameWithSuffix(originOutput, "ipv6")
 		ipv6SpeedData := singleSpeedTest() // 开始延迟测速 + 过滤延迟/丢包
-		ddnsSync(ipv6SpeedData)      // 同步到DNS
+		ipData = append(ipData, ddnsSync(ipv6SpeedData)...)      // 同步到DNS
 
 		// 恢复原始文件设置
 		task.IPv4File = origIPv4File
 		task.IPv6File = origIPv6File
 		utils.Output = originOutput
 	} else {
-		ddnsSync(singleSpeedTest()) // 延迟测速 + 过滤延迟/丢包 + 同步到DNS
+		ipData = ddnsSync(singleSpeedTest()) // 延迟测速 + 过滤延迟/丢包 + 同步到DNS
 	}
+	return ipData
 }
 
 func singleSpeedTest() utils.DownloadSpeedSet {
@@ -300,9 +357,9 @@ func singleSpeedTest() utils.DownloadSpeedSet {
 	return speedData
 }
 
-func ddnsSync(speedData utils.DownloadSpeedSet) {
+func ddnsSync(speedData utils.DownloadSpeedSet) []string {
 	if len(speedData) == 0 {
-		return
+		return []string{}
 	}
 
 	// 根据结果类型分类
@@ -356,6 +413,8 @@ func ddnsSync(speedData utils.DownloadSpeedSet) {
 			utils.Green.Println("同步到Cloudflare KV成功!")
 		}
 	}
+
+	return append(ipv4Results, ipv6Results...)
 }
 
 // 根据情况选择退出方式（针对 Windows）
