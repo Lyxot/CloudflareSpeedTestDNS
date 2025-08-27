@@ -115,6 +115,29 @@ subdomain = "www"
 ttl = 600
 
 #######################
+# DNSPod DNS相关参数
+#######################
+
+[dnspod]
+# 是否启用DNSPod DNS (默认 false)
+enable = false
+
+# DNSPod Secret ID
+secret_id = ""
+
+# DNSPod Secret Key
+secret_key = ""
+
+# 域名
+domain = "example.com"
+
+# 子域名
+subdomain = "www"
+
+# TTL (默认 600)
+ttl = 600
+
+#######################
 # Cloudflare DNS相关参数
 #######################
 

@@ -15,6 +15,10 @@ github.com/mattn/go-runewidth v0.0.16/go.mod h1:Jdepj2loyihRzMpdS35Xk/zdY8IAYHsh
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.4.7 h1:WUdvkW8uEhrYfLC4ZzdpI2ztxP1I582+49Oc5Mq64VQ=
 github.com/rivo/uniseg v0.4.7/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=
+github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.1.10 h1:hidSlGUhQOJjYuxtE0PpUuap0dIW3IH7GgVd9KHTXGI=
+github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.1.10/go.mod h1:r5r4xbfxSaeR04b166HGsBa/R4U3SueirEUpXGuw+Q0=
+github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/dnspod v1.1.10 h1:OvH3MasOffT6el+X5RyMwHBoNbKTXx9UUlSLA72kz0E=
+github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/dnspod v1.1.10/go.mod h1:q5I3rBG2brb5BW0pFvr/6fD2E4uYgDP0GThDLUvm85Q=
 golang.org/x/sys v0.6.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.30.0 h1:QjkSwP/36a20jFYWkSue1YwXzLmsV5Gfq7Eiy72C1uc=
 golang.org/x/sys v0.30.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=

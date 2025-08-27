@@ -21,6 +21,16 @@ type AliDNSConfig struct {
 	TTL             int    `toml:"ttl"`              // TTL
 }
 
+// DNSPodConfig DNSPod DNS配置
+type DNSPodConfig struct {
+	Enable    bool   `toml:"enable"`     // 是否启用DNSPod DNS
+	SecretID  string `toml:"secret_id"`  // DNSPod Secret ID
+	SecretKey string `toml:"secret_key"` // DNSPod Secret Key
+	Domain    string `toml:"domain"`     // 域名
+	Subdomain string `toml:"subdomain"`  // 子域名
+	TTL       int    `toml:"ttl"`        // TTL
+}
+
 // CloudflareConfig Cloudflare DNS配置
 type CloudflareConfig struct {
 	Enable    bool   `toml:"enable"`    // 是否启用Cloudflare DNS
@@ -76,6 +86,9 @@ type Config struct {
 
 	// 阿里云DNS相关
 	AliDNS AliDNSConfig `toml:"alidns"` // 阿里云DNS配置
+
+	// DNSPod DNS相关
+	DNSPod DNSPodConfig `toml:"dnspod"` // DNSPod DNS配置
 
 	// Cloudflare DNS相关
 	Cloudflare CloudflareConfig `toml:"cloudflare"` // Cloudflare DNS配置
@@ -185,6 +198,18 @@ func ApplyConfig(config *Config) {
 	// 如果配置文件中启用了阿里云DNS，则覆盖命令行参数
 	if config.AliDNS.Enable {
 		enableAliDNS = true
+	}
+
+	// 设置DNSPod DNS相关参数
+	ddns.DNSPodConfig.SecretID = config.DNSPod.SecretID
+	ddns.DNSPodConfig.SecretKey = config.DNSPod.SecretKey
+	ddns.DNSPodConfig.Domain = config.DNSPod.Domain
+	ddns.DNSPodConfig.Subdomain = config.DNSPod.Subdomain
+	ddns.DNSPodConfig.TTL = config.DNSPod.TTL
+
+	// 如果配置文件中启用了DNSPod DNS，则覆盖命令行参数
+	if config.DNSPod.Enable {
+		enableDNSPod = true
 	}
 
 	// 设置Cloudflare DNS相关参数

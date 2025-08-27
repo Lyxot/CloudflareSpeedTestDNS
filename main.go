@@ -20,6 +20,7 @@ var (
 	enableAliDNS        bool
 	enableCloudflare    bool
 	enableCFKV          bool
+	enableDNSPod        bool
 )
 
 func init() {
@@ -90,6 +91,19 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
     -alidns-ttl
         阿里云TTL；域名解析记录的TTL值（默认 600）
 
+    -dnspod
+        启用DNSPod DNS更新；测速完成后将结果更新到DNSPod DNS；(默认 关闭)
+    -dnspod-secret-id
+        DNSPod Secret ID；用于访问DNSPod API
+    -dnspod-secret-key
+        DNSPod Secret Key；用于访问DNSPod API
+    -dnspod-domain
+        DNSPod域名；需要更新的域名
+    -dnspod-subdomain
+        DNSPod子域名（如 www）
+    -dnspod-ttl
+        DNSPod TTL；域名解析记录的TTL值（默认 600）
+
     -cloudflare
         启用Cloudflare DNS更新；测速完成后将结果更新到Cloudflare DNS；(默认 关闭)
     -cf-token
@@ -152,13 +166,19 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 	flag.BoolVar(&task.Disable, "dd", false, "禁用下载测速")
 	flag.BoolVar(&task.TestAll, "allip", false, "测速全部 IP")
 
-	flag.BoolVar(&utils.Debug, "debug", false, "调试输出模式")
 	flag.BoolVar(&enableAliDNS, "alidns", false, "启用阿里云DNS更新")
 	flag.StringVar(&ddns.AliDNSConfig.AccessKeyID, "alidns-key", "", "阿里云AccessKeyID")
 	flag.StringVar(&ddns.AliDNSConfig.AccessKeySecret, "alidns-secret", "", "阿里云AccessKeySecret")
 	flag.StringVar(&ddns.AliDNSConfig.Domain, "alidns-domain", "", "阿里云域名")
 	flag.StringVar(&ddns.AliDNSConfig.Subdomain, "alidns-subdomain", "", "阿里云子域名")
 	flag.IntVar(&ddns.AliDNSConfig.TTL, "alidns-ttl", 600, "阿里云TTL")
+
+	flag.BoolVar(&enableDNSPod, "dnspod", false, "启用DNSPod DNS更新")
+	flag.StringVar(&ddns.DNSPodConfig.SecretID, "dnspod-secret-id", "", "DNSPod Secret ID")
+	flag.StringVar(&ddns.DNSPodConfig.SecretKey, "dnspod-secret-key", "", "DNSPod Secret Key")
+	flag.StringVar(&ddns.DNSPodConfig.Domain, "dnspod-domain", "", "DNSPod域名")
+	flag.StringVar(&ddns.DNSPodConfig.Subdomain, "dnspod-subdomain", "", "DNSPod子域名")
+	flag.IntVar(&ddns.DNSPodConfig.TTL, "dnspod-ttl", 600, "DNSPod TTL")
 
 	flag.BoolVar(&enableCloudflare, "cloudflare", false, "启用Cloudflare DNS更新")
 	flag.StringVar(&ddns.CloudflareConfig.APIToken, "cf-token", "", "Cloudflare API Token")
@@ -173,6 +193,7 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 	flag.StringVar(&ddns.CloudflareKVConfig.AccountID, "cfkv-account", "", "Cloudflare Account ID")
 	flag.StringVar(&ddns.CloudflareKVConfig.NamespaceID, "cfkv-namespace", "", "Cloudflare KV Namespace ID")
 
+	flag.BoolVar(&utils.Debug, "debug", false, "调试输出模式")
 	flag.StringVar(&configFile, "c", "", "指定TOML配置文件")
 	flag.BoolVar(&printVersion, "v", false, "打印程序版本")
 	flag.Usage = func() { fmt.Print(help) }
@@ -274,6 +295,16 @@ func main() {
 			}
 		}
 
+		// 如果启用了DNSPod DNS，则同步结果
+		if enableDNSPod && len(ipv4Results) > 0 {
+			fmt.Println("\n开始同步结果到DNSPod DNS...")
+			if err := ddns.SyncDNSPodRecords(ipv4Results, []string{}); err != nil {
+				utils.Red.Printf("同步到DNSPod DNS失败: %v\n", err)
+			} else {
+				utils.Green.Println("同步到DNSPod DNS成功!")
+			}
+		}
+
 		// 如果启用了Cloudflare DNS，则同步结果
 		if enableCloudflare && len(ipv4Results) > 0 {
 			fmt.Println("\n开始同步结果到Cloudflare DNS...")
@@ -332,6 +363,16 @@ func main() {
 			}
 		}
 
+		// 如果启用了DNSPod DNS，则同步结果
+		if enableDNSPod && len(ipv6Results) > 0 {
+			fmt.Println("\n开始同步结果到DNSPod DNS...")
+			if err := ddns.SyncDNSPodRecords([]string{}, ipv6Results); err != nil {
+				utils.Red.Printf("同步到DNSPod DNS失败: %v\n", err)
+			} else {
+				utils.Green.Println("同步到DNSPod DNS成功!")
+			}
+		}
+
 		// 如果启用了Cloudflare DNS，则同步结果
 		if enableCloudflare && len(ipv6Results) > 0 {
 			fmt.Println("\n开始同步结果到Cloudflare DNS...")
@@ -378,6 +419,16 @@ func main() {
 				utils.Red.Printf("同步到阿里云DNS失败: %v\n", err)
 			} else {
 				utils.Green.Println("同步到阿里云DNS成功!")
+			}
+		}
+
+		// 如果启用了DNSPod DNS，则同步结果
+		if enableDNSPod && len(speedData) > 0 {
+			fmt.Println("\n开始同步结果到DNSPod DNS...")
+			if err := ddns.SyncDNSPodRecords(ipv4Results, ipv6Results); err != nil {
+				utils.Red.Printf("同步到DNSPod DNS失败: %v\n", err)
+			} else {
+				utils.Green.Println("同步到DNSPod DNS成功!")
 			}
 		}
 

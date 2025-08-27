@@ -6,6 +6,8 @@ require (
 	github.com/VividCortex/ewma v1.2.0
 	github.com/cheggaaa/pb/v3 v3.1.7
 	github.com/fatih/color v1.18.0
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.1.10
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/dnspod v1.1.10
 )
 
 require (
