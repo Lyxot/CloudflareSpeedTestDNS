@@ -32,6 +32,14 @@ type CloudflareConfig struct {
 	TTL       int    `toml:"ttl"`       // TTL，1为自动
 }
 
+// CloudflareKVConfig Cloudflare KV配置
+type CloudflareKVConfig struct {
+	Enable      bool   `toml:"enable"`       // 是否启用Cloudflare KV
+	APIToken    string `toml:"api_token"`    // Cloudflare API Token
+	AccountID   string `toml:"account_id"`   // Cloudflare Account ID
+	NamespaceID string `toml:"namespace_id"` // Cloudflare KV Namespace ID
+}
+
 // Config 配置文件结构体
 type Config struct {
 	// 延迟测速相关
@@ -71,6 +79,9 @@ type Config struct {
 
 	// Cloudflare DNS相关
 	Cloudflare CloudflareConfig `toml:"cloudflare"` // Cloudflare DNS配置
+
+	// Cloudflare KV相关
+	CFKV CloudflareKVConfig `toml:"cfkv"` // Cloudflare KV配置
 }
 
 // LoadConfig 从TOML文件加载配置
@@ -187,6 +198,16 @@ func ApplyConfig(config *Config) {
 	// 如果配置文件中启用了Cloudflare DNS，则覆盖命令行参数
 	if config.Cloudflare.Enable {
 		enableCloudflare = true
+	}
+
+	// 设置Cloudflare KV相关参数
+	ddns.CloudflareKVConfig.APIToken = config.CFKV.APIToken
+	ddns.CloudflareKVConfig.AccountID = config.CFKV.AccountID
+	ddns.CloudflareKVConfig.NamespaceID = config.CFKV.NamespaceID
+
+	// 如果配置文件中启用了Cloudflare KV，则覆盖命令行参数
+	if config.CFKV.Enable {
+		enableCFKV = true
 	}
 
 	// 设置输入输出相关参数

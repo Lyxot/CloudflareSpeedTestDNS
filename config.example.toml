@@ -139,3 +139,20 @@ proxied = false
 
 # TTL (1为自动，默认 1)
 ttl = 1
+
+#######################
+# Cloudflare KV相关参数
+#######################
+
+[cfkv]
+# 是否启用Cloudflare KV (默认 false)
+enable = false
+
+# Cloudflare API Token
+api_token = ""
+
+# Cloudflare Account ID
+account_id = ""
+
+# Cloudflare KV Namespace ID
+namespace_id = ""

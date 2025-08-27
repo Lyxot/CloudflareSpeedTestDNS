@@ -19,6 +19,7 @@ var (
 	configFile          string
 	enableAliDNS        bool
 	enableCloudflare    bool
+	enableCFKV          bool
 )
 
 func init() {
@@ -104,6 +105,15 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
     -cf-ttl
         Cloudflare TTL；域名解析记录的TTL值，1为自动（默认 1）
 
+    -cfkv
+        启用Cloudflare KV更新；测速完成后将结果更新到Cloudflare KV；(默认 关闭)
+    -cfkv-token
+        Cloudflare API Token；用于访问Cloudflare API
+    -cfkv-account
+        Cloudflare Account ID；账户ID
+    -cfkv-namespace
+        Cloudflare KV Namespace ID；KV命名空ID
+
     -debug
         调试输出模式；会在一些非预期情况下输出更多日志以便判断原因；(默认 关闭)
 
@@ -157,6 +167,11 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 	flag.StringVar(&ddns.CloudflareConfig.Subdomain, "cf-subdomain", "", "Cloudflare子域名")
 	flag.BoolVar(&ddns.CloudflareConfig.Proxied, "cf-proxy", false, "是否开启Cloudflare代理")
 	flag.IntVar(&ddns.CloudflareConfig.TTL, "cf-ttl", 1, "Cloudflare TTL（1为自动）")
+
+	flag.BoolVar(&enableCFKV, "cfkv", false, "启用Cloudflare KV更新")
+	flag.StringVar(&ddns.CloudflareKVConfig.APIToken, "cfkv-token", "", "Cloudflare API Token")
+	flag.StringVar(&ddns.CloudflareKVConfig.AccountID, "cfkv-account", "", "Cloudflare Account ID")
+	flag.StringVar(&ddns.CloudflareKVConfig.NamespaceID, "cfkv-namespace", "", "Cloudflare KV Namespace ID")
 
 	flag.StringVar(&configFile, "c", "", "指定TOML配置文件")
 	flag.BoolVar(&printVersion, "v", false, "打印程序版本")
@@ -269,6 +284,16 @@ func main() {
 			}
 		}
 
+		// 如果启用了Cloudflare KV，则同步结果
+		if enableCFKV && len(ipv4SpeedData) > 0 {
+			fmt.Println("\n开始同步结果到Cloudflare KV...")
+			if err := ddns.SyncCloudflareKV(ipv4SpeedData.FilterIPv4(), []utils.IPData{}); err != nil {
+				utils.Red.Printf("同步到Cloudflare KV失败: %v\n", err)
+			} else {
+				utils.Green.Println("同步到Cloudflare KV成功!")
+			}
+		}
+
 		// 再测试IPv6
 		// 恢复原始文件设置
 		task.IPv4File = origIPv4File
@@ -316,6 +341,16 @@ func main() {
 				utils.Green.Println("同步到Cloudflare DNS成功!")
 			}
 		}
+
+		// 如果启用了Cloudflare KV，则同步结果
+		if enableCFKV && len(ipv6SpeedData) > 0 {
+			fmt.Println("\n开始同步结果到Cloudflare KV...")
+			if err := ddns.SyncCloudflareKV([]utils.IPData{}, ipv6SpeedData.FilterIPv6()); err != nil {
+				utils.Red.Printf("同步到Cloudflare KV失败: %v\n", err)
+			} else {
+				utils.Green.Println("同步到Cloudflare KV成功!")
+			}
+		}
 	} else {
 		// 开始延迟测速 + 过滤延迟/丢包
 		pingData := task.NewPing().Run().FilterDelay().FilterLossRate()
@@ -353,6 +388,16 @@ func main() {
 				utils.Red.Printf("同步到Cloudflare DNS失败: %v\n", err)
 			} else {
 				utils.Green.Println("同步到Cloudflare DNS成功!")
+			}
+		}
+
+		// 如果启用了Cloudflare KV，则同步结果
+		if enableCFKV && len(speedData) > 0 {
+			fmt.Println("\n开始同步结果到Cloudflare KV...")
+			if err := ddns.SyncCloudflareKV(speedData.FilterIPv4(), speedData.FilterIPv6()); err != nil {
+				utils.Red.Printf("同步到Cloudflare KV失败: %v\n", err)
+			} else {
+				utils.Green.Println("同步到Cloudflare KV成功!")
 			}
 		}
 	}

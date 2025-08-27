@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -162,6 +163,54 @@ func (s DownloadSpeedSet) Less(i, j int) bool {
 }
 func (s DownloadSpeedSet) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
+}
+
+// FilterIPv4 过滤出 IPv4 数据
+func (s DownloadSpeedSet) FilterIPv4() []IPData {
+	var result []IPData
+	for _, data := range s {
+		ip := data.IP.String()
+		if strings.Contains(ip, ".") { // IPv4地址包含点
+			result = append(result, IPData{
+				IP:       ip,
+				Packets:  data.Sended,
+				Received: data.Received,
+				LossRate: data.getLossRate(),
+				Delay:    int64(data.Delay / time.Millisecond),
+				Speed:    data.DownloadSpeed / 1024 / 1024, // 转为 MB/s
+			})
+		}
+	}
+	return result
+}
+
+// FilterIPv6 过滤出 IPv6 数据
+func (s DownloadSpeedSet) FilterIPv6() []IPData {
+	var result []IPData
+	for _, data := range s {
+		ip := data.IP.String()
+		if strings.Contains(ip, ":") { // IPv6地址包含冒号
+			result = append(result, IPData{
+				IP:       ip,
+				Packets:  data.Sended,
+				Received: data.Received,
+				LossRate: data.getLossRate(),
+				Delay:    int64(data.Delay / time.Millisecond),
+				Speed:    data.DownloadSpeed / 1024 / 1024, // 转为 MB/s
+			})
+		}
+	}
+	return result
+}
+
+// IPData 用于导出到 Cloudflare KV 的数据结构
+type IPData struct {
+	IP       string  // IP 地址
+	Packets  int     // 发送的包数
+	Received int     // 接收的包数
+	LossRate float32 // 丢包率
+	Delay    int64   // 延迟（毫秒）
+	Speed    float64 // 下载速度（MB/s）
 }
 
 func (s DownloadSpeedSet) Print() {
