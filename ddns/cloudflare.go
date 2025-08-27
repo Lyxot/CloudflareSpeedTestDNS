@@ -1,13 +1,11 @@
 package ddns
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
-	"net/http"
 
 	"github.com/Lyxot/CloudflareSpeedTestDNS/utils"
+	"github.com/cloudflare/cloudflare-go"
 )
 
 // CloudflareConfig Cloudflare DNS配置
@@ -18,16 +16,6 @@ type cloudflareConfig struct {
 	Subdomain string `toml:"subdomain"` // 子域名
 	Proxied   bool   `toml:"proxied"`    // 是否开启Cloudflare代理
 	TTL       int    `toml:"ttl"`        // TTL，1为自动
-}
-
-// CloudflareDNSRecord 表示一条Cloudflare DNS记录
-type CloudflareDNSRecord struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Type    string `json:"type"`
-	Content string `json:"content"`
-	Proxied bool   `json:"proxied"`
-	TTL     int    `json:"ttl"`
 }
 
 // 默认配置
@@ -42,10 +30,11 @@ var (
 	}
 )
 
-// Cloudflare API地址
-const (
-	CloudflareAPI = "https://api.cloudflare.com/client/v4"
-)
+// newCloudflareClient 创建一个新的Cloudflare客户端
+func newCloudflareClient() (*cloudflare.API, error) {
+	api, err := cloudflare.NewWithAPIToken(CloudflareConfig.APIToken)
+	return api, err
+}
 
 // SyncCloudflareRecords 同步Cloudflare DNS记录
 func SyncCloudflareRecords(ipv4Results, ipv6Results []string) error {
@@ -62,24 +51,31 @@ func SyncCloudflareRecords(ipv4Results, ipv6Results []string) error {
 		return fmt.Errorf("Cloudflare DNS配置不完整")
 	}
 
+	api, err := newCloudflareClient()
+	if err != nil {
+		return fmt.Errorf("创建Cloudflare客户端失败: %v", err)
+	}
+
+	ctx := context.Background()
+
 	// 同步A记录
 	if len(ipv4Results) > 0 {
-		v4Records, err := getCloudflareRecords("A")
+		v4Records, err := getCloudflareRecords(ctx, api, "A")
 		if err != nil {
 			return fmt.Errorf("获取Cloudflare A记录失败: %v", err)
 		}
-		if err := syncCloudflareRecords("A", ipv4Results, v4Records); err != nil {
+		if err := syncCloudflareRecords(ctx, api, "A", ipv4Results, v4Records); err != nil {
 			return fmt.Errorf("同步Cloudflare A记录失败: %v", err)
 		}
 	}
 
 	// 同步AAAA记录
 	if len(ipv6Results) > 0 {
-		v6Records, err := getCloudflareRecords("AAAA")
+		v6Records, err := getCloudflareRecords(ctx, api, "AAAA")
 		if err != nil {
 			return fmt.Errorf("获取Cloudflare AAAA记录失败: %v", err)
 		}
-		if err := syncCloudflareRecords("AAAA", ipv6Results, v6Records); err != nil {
+		if err := syncCloudflareRecords(ctx, api, "AAAA", ipv6Results, v6Records); err != nil {
 			return fmt.Errorf("同步Cloudflare AAAA记录失败: %v", err)
 		}
 	}
@@ -88,19 +84,18 @@ func SyncCloudflareRecords(ipv4Results, ipv6Results []string) error {
 }
 
 // syncCloudflareRecords 同步Cloudflare DNS记录
-func syncCloudflareRecords(recordType string, desiredValues []string, existingRecords []CloudflareDNSRecord) error {
+func syncCloudflareRecords(ctx context.Context, api *cloudflare.API, recordType string, desiredValues []string, existingRecords []cloudflare.DNSRecord) error {
 	// 1) 跳过已存在且值一致的记录
 	desiredCounter := make(map[string]int)
 	for _, v := range desiredValues {
 		desiredCounter[v]++
 	}
 
-	changeableRecords := []CloudflareDNSRecord{}
+	changeableRecords := []cloudflare.DNSRecord{}
 
 	for _, rec := range existingRecords {
 		if count, exists := desiredCounter[rec.Content]; exists && count > 0 {
 			desiredCounter[rec.Content]--
-			// 记录已经存在，无需操作
 		} else {
 			changeableRecords = append(changeableRecords, rec)
 		}
@@ -123,7 +118,7 @@ func syncCloudflareRecords(recordType string, desiredValues []string, existingRe
 			if utils.Debug {
 				utils.Yellow.Printf("[调试] 更新Cloudflare %s记录: %s -> %s (ID: %s)\n", recordType, rec.Content, newVal, rec.ID)
 			}
-			if err := updateCloudflareRecord(recordType, newVal, rec.ID); err != nil {
+			if err := updateCloudflareRecord(ctx, api, recordType, newVal, rec.ID); err != nil {
 				return err
 			}
 		}
@@ -134,7 +129,7 @@ func syncCloudflareRecords(recordType string, desiredValues []string, existingRe
 		if utils.Debug {
 			utils.Yellow.Printf("[调试] 添加Cloudflare %s记录: %s\n", recordType, v)
 		}
-		if err := addCloudflareRecord(recordType, v); err != nil {
+		if err := addCloudflareRecord(ctx, api, recordType, v); err != nil {
 			return err
 		}
 	}
@@ -144,7 +139,7 @@ func syncCloudflareRecords(recordType string, desiredValues []string, existingRe
 		if utils.Debug {
 			utils.Yellow.Printf("[调试] 删除Cloudflare %s记录: %s (ID: %s)\n", recordType, rec.Content, rec.ID)
 		}
-		if err := deleteCloudflareRecord(rec.ID); err != nil {
+		if err := deleteCloudflareRecord(ctx, api, rec.ID); err != nil {
 			return err
 		}
 	}
@@ -153,262 +148,66 @@ func syncCloudflareRecords(recordType string, desiredValues []string, existingRe
 }
 
 // getCloudflareRecords 获取指定类型的Cloudflare DNS记录
-func getCloudflareRecords(recordType string) ([]CloudflareDNSRecord, error) {
-	// 根据子域名和域名拼接得到完整域名
+func getCloudflareRecords(ctx context.Context, api *cloudflare.API, recordType string) ([]cloudflare.DNSRecord, error) {
 	var fullName string
 	if CloudflareConfig.Subdomain == "" || CloudflareConfig.Subdomain == "@" {
-		// 如果子域名为空或@，则使用域名本身
 		fullName = CloudflareConfig.Domain
 	} else {
 		fullName = CloudflareConfig.Subdomain + "." + CloudflareConfig.Domain
 	}
 
-	url := fmt.Sprintf("%s/zones/%s/dns_records?type=%s&name=%s", 
-		CloudflareAPI, CloudflareConfig.ZoneID, recordType, fullName)
-
-	req, err := http.NewRequest("GET", url, nil)
+	records, _, err := api.ListDNSRecords(ctx, cloudflare.ZoneIdentifier(CloudflareConfig.ZoneID), cloudflare.ListDNSRecordsParams{
+		Type: recordType,
+		Name: fullName,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", "Bearer "+CloudflareConfig.APIToken)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if utils.Debug {
-		utils.Yellow.Printf("[调试] Cloudflare API响应: %s\n", string(body))
-	}
-
-	var result struct {
-		Success bool `json:"success"`
-		Errors  []struct {
-			Code    int    `json:"code"`
-			Message string `json:"message"`
-		} `json:"errors"`
-		Result []CloudflareDNSRecord `json:"result"`
-	}
-
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, err
-	}
-
-	if !result.Success {
-		if len(result.Errors) > 0 {
-			return nil, fmt.Errorf("Cloudflare API错误: %s (代码: %d)",
-				result.Errors[0].Message, result.Errors[0].Code)
-		}
-		return nil, fmt.Errorf("Cloudflare API请求失败")
-	}
-
-	return result.Result, nil
+	return records, nil
 }
 
 // addCloudflareRecord 添加Cloudflare DNS记录
-func addCloudflareRecord(recordType, content string) error {
-	url := fmt.Sprintf("%s/zones/%s/dns_records", CloudflareAPI, CloudflareConfig.ZoneID)
-
-	// 根据子域名和域名拼接得到完整域名
+func addCloudflareRecord(ctx context.Context, api *cloudflare.API, recordType, content string) error {
 	var fullName string
 	if CloudflareConfig.Subdomain == "" || CloudflareConfig.Subdomain == "@" {
-		// 如果子域名为空或@，则使用域名本身
 		fullName = CloudflareConfig.Domain
 	} else {
 		fullName = CloudflareConfig.Subdomain + "." + CloudflareConfig.Domain
 	}
 
-	data := map[string]interface{}{
-		"type":    recordType,
-		"name":    fullName,
-		"content": content,
-		"ttl":     CloudflareConfig.TTL,
-		"proxied": CloudflareConfig.Proxied,
-	}
-
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+CloudflareConfig.APIToken)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if utils.Debug {
-		utils.Yellow.Printf("[调试] Cloudflare API添加记录响应: %s\n", string(body))
-	}
-
-	var result struct {
-		Success bool `json:"success"`
-		Errors  []struct {
-			Code    int    `json:"code"`
-			Message string `json:"message"`
-		} `json:"errors"`
-	}
-
-	if err := json.Unmarshal(body, &result); err != nil {
-		return err
-	}
-
-	if !result.Success {
-		if len(result.Errors) > 0 {
-			return fmt.Errorf("Cloudflare API错误: %s (代码: %d)",
-				result.Errors[0].Message, result.Errors[0].Code)
-		}
-		return fmt.Errorf("Cloudflare API请求失败")
-	}
-
-	return nil
+	_, err := api.CreateDNSRecord(ctx, cloudflare.ZoneIdentifier(CloudflareConfig.ZoneID), cloudflare.CreateDNSRecordParams{
+		Type:    recordType,
+		Name:    fullName,
+		Content: content,
+		TTL:     CloudflareConfig.TTL,
+		Proxied: &CloudflareConfig.Proxied,
+	})
+	return err
 }
 
 // updateCloudflareRecord 更新Cloudflare DNS记录
-func updateCloudflareRecord(recordType, content, id string) error {
-	url := fmt.Sprintf("%s/zones/%s/dns_records/%s",
-		CloudflareAPI, CloudflareConfig.ZoneID, id)
-
-	// 根据子域名和域名拼接得到完整域名
+func updateCloudflareRecord(ctx context.Context, api *cloudflare.API, recordType, content, id string) error {
 	var fullName string
 	if CloudflareConfig.Subdomain == "" || CloudflareConfig.Subdomain == "@" {
-		// 如果子域名为空或@，则使用域名本身
 		fullName = CloudflareConfig.Domain
 	} else {
 		fullName = CloudflareConfig.Subdomain + "." + CloudflareConfig.Domain
 	}
 
-	data := map[string]interface{}{
-		"type":    recordType,
-		"name":    fullName,
-		"content": content,
-		"ttl":     CloudflareConfig.TTL,
-		"proxied": CloudflareConfig.Proxied,
-	}
-
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+CloudflareConfig.APIToken)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if utils.Debug {
-		utils.Yellow.Printf("[调试] Cloudflare API更新记录响应: %s\n", string(body))
-	}
-
-	var result struct {
-		Success bool `json:"success"`
-		Errors  []struct {
-			Code    int    `json:"code"`
-			Message string `json:"message"`
-		} `json:"errors"`
-	}
-
-	if err := json.Unmarshal(body, &result); err != nil {
-		return err
-	}
-
-	if !result.Success {
-		if len(result.Errors) > 0 {
-			return fmt.Errorf("Cloudflare API错误: %s (代码: %d)",
-				result.Errors[0].Message, result.Errors[0].Code)
-		}
-		return fmt.Errorf("Cloudflare API请求失败")
-	}
-
-	return nil
+	_, err := api.UpdateDNSRecord(ctx, cloudflare.ZoneIdentifier(CloudflareConfig.ZoneID), cloudflare.UpdateDNSRecordParams{
+		ID:      id,
+		Type:    recordType,
+		Name:    fullName,
+		Content: content,
+		TTL:     CloudflareConfig.TTL,
+		Proxied: &CloudflareConfig.Proxied,
+	})
+	return err
 }
 
 // deleteCloudflareRecord 删除Cloudflare DNS记录
-func deleteCloudflareRecord(id string) error {
-	url := fmt.Sprintf("%s/zones/%s/dns_records/%s",
-		CloudflareAPI, CloudflareConfig.ZoneID, id)
-
-	req, err := http.NewRequest("DELETE", url, nil)
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+CloudflareConfig.APIToken)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if utils.Debug {
-		utils.Yellow.Printf("[调试] Cloudflare API删除记录响应: %s\n", string(body))
-	}
-
-	var result struct {
-		Success bool `json:"success"`
-		Errors  []struct {
-			Code    int    `json:"code"`
-			Message string `json:"message"`
-		} `json:"errors"`
-	}
-
-	if err := json.Unmarshal(body, &result); err != nil {
-		return err
-	}
-
-	if !result.Success {
-		if len(result.Errors) > 0 {
-			return fmt.Errorf("Cloudflare API错误: %s (代码: %d)",
-				result.Errors[0].Message, result.Errors[0].Code)
-		}
-		return fmt.Errorf("Cloudflare API请求失败")
-	}
-
-	return nil
+func deleteCloudflareRecord(ctx context.Context, api *cloudflare.API, id string) error {
+	return api.DeleteDNSRecord(ctx, cloudflare.ZoneIdentifier(CloudflareConfig.ZoneID), id)
 }
+

@@ -1,15 +1,13 @@
 package ddns
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/Lyxot/CloudflareSpeedTestDNS/utils"
+	"github.com/cloudflare/cloudflare-go"
 )
 
 // cloudflareKVConfig Cloudflare KV配置
@@ -30,10 +28,11 @@ var (
 	}
 )
 
-// Cloudflare KV API地址
-const (
-	CloudflareKVAPI = "https://api.cloudflare.com/client/v4/accounts/%s/storage/kv/namespaces/%s/values"
-)
+// newCloudflareKVClient 创建一个新的Cloudflare客户端
+func newCloudflareKVClient() (*cloudflare.API, error) {
+	api, err := cloudflare.NewWithAPIToken(CloudflareKVConfig.APIToken)
+	return api, err
+}
 
 // SyncCloudflareKV 同步测速结果到Cloudflare KV
 func SyncCloudflareKV(ipv4Data, ipv6Data []utils.IPData) error {
@@ -45,6 +44,13 @@ func SyncCloudflareKV(ipv4Data, ipv6Data []utils.IPData) error {
 		return fmt.Errorf("cloudflare kv配置不完整")
 	}
 
+	api, err := newCloudflareKVClient()
+	if err != nil {
+		return fmt.Errorf("创建Cloudflare客户端失败: %v", err)
+	}
+
+	ctx := context.Background()
+
 	// 当前时间
 	currentTime := time.Now().Format("2006-01-02 15:04:05")
 
@@ -54,12 +60,12 @@ func SyncCloudflareKV(ipv4Data, ipv6Data []utils.IPData) error {
 		ipv4DataStr := buildKVDataString(ipv4Data)
 
 		// 写入IPv4数据
-		if err := writeToCloudflareKV("ipv4", ipv4DataStr); err != nil {
+		if err := writeToCloudflareKV(ctx, api, "ipv4", ipv4DataStr); err != nil {
 			return fmt.Errorf("写入IPv4数据到Cloudflare KV失败: %v", err)
 		}
 
 		// 写入IPv4更新时间
-		if err := writeToCloudflareKV("ipv4time", currentTime); err != nil {
+		if err := writeToCloudflareKV(ctx, api, "ipv4time", currentTime); err != nil {
 			return fmt.Errorf("写入IPv4更新时间到Cloudflare KV失败: %v", err)
 		}
 
@@ -74,12 +80,12 @@ func SyncCloudflareKV(ipv4Data, ipv6Data []utils.IPData) error {
 		ipv6DataStr := buildKVDataString(ipv6Data)
 
 		// 写入IPv6数据
-		if err := writeToCloudflareKV("ipv6", ipv6DataStr); err != nil {
+		if err := writeToCloudflareKV(ctx, api, "ipv6", ipv6DataStr); err != nil {
 			return fmt.Errorf("写入IPv6数据到Cloudflare KV失败: %v", err)
 		}
 
 		// 写入IPv6更新时间
-		if err := writeToCloudflareKV("ipv6time", currentTime); err != nil {
+		if err := writeToCloudflareKV(ctx, api, "ipv6time", currentTime); err != nil {
 			return fmt.Errorf("写入IPv6更新时间到Cloudflare KV失败: %v", err)
 		}
 
@@ -113,52 +119,11 @@ func buildKVDataString(ipData []utils.IPData) string {
 }
 
 // writeToCloudflareKV 写入数据到Cloudflare KV
-func writeToCloudflareKV(key, value string) error {
-	url := fmt.Sprintf(CloudflareKVAPI, CloudflareKVConfig.AccountID, CloudflareKVConfig.NamespaceID) + "/" + key
-
-	req, err := http.NewRequest("PUT", url, bytes.NewBufferString(value))
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+CloudflareKVConfig.APIToken)
-	req.Header.Set("Content-Type", "text/plain")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if utils.Debug {
-		utils.Yellow.Printf("[调试] Cloudflare KV API响应: %s\n", string(body))
-	}
-
-	var result struct {
-		Success bool `json:"success"`
-		Errors  []struct {
-			Code    int    `json:"code"`
-			Message string `json:"message"`
-		} `json:"errors"`
-	}
-
-	if err := json.Unmarshal(body, &result); err != nil {
-		return err
-	}
-
-	if !result.Success {
-		if len(result.Errors) > 0 {
-			return fmt.Errorf("cloudflare kv api错误: %s (代码: %d)",
-				result.Errors[0].Message, result.Errors[0].Code)
-		}
-		return fmt.Errorf("cloudflare kv api请求失败")
-	}
-
-	return nil
+func writeToCloudflareKV(ctx context.Context, api *cloudflare.API, key, value string) error {
+	_, err := api.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(CloudflareKVConfig.AccountID), cloudflare.WriteWorkersKVEntryParams{
+		NamespaceID: CloudflareKVConfig.NamespaceID,
+		Key:         key,
+		Value:       []byte(value),
+	})
+	return err
 }
