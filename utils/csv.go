@@ -93,6 +93,17 @@ func ExportCsv(data []CloudflareIPData) {
 	w.Flush()
 }
 
+func GetFilenameWithSuffix(filename, suffix string) string {
+	if len(filename) == 0 {
+		return ""
+	}
+	extIndex := strings.LastIndex(filename, ".")
+	if extIndex == -1 {
+		return filename + "_" + suffix
+	}
+	return filename[:extIndex] + "_" + suffix + filename[extIndex:]
+}
+
 func convertToString(data []CloudflareIPData) [][]string {
 	result := make([][]string, 0)
 	for _, v := range data {

@@ -253,207 +253,109 @@ func main() {
 		task.IPFile = ""
 	}
 
-	// 检查是否需要同时测试IPv4和IPv6
-	if task.IsBothMode() {
+	speedTest() // 开始测速
 
-		// 先测试IPv4
+	endPrint() // 根据情况选择退出方式（针对 Windows）
+}
+
+func speedTest() {
+	if task.IsBothMode() {
 		// 保存原始文件设置
 		origIPv4File := task.IPv4File
 		origIPv6File := task.IPv6File
+		originOutput := utils.Output
 
-		// 仅测试IPv4
-		if task.IPv6File != "" {
-			task.IPv6File = ""
-		}
+		// 测试IPv4
 		fmt.Println("\n[IPv4] 开始测试IPv4...")
-		// 开始延迟测速 + 过滤延迟/丢包
-		ipv4PingData := task.NewPing().Run().FilterDelay().FilterLossRate()
-		// 开始下载测速
-		ipv4SpeedData := task.TestDownloadSpeed(ipv4PingData)
-		// 输出到IPv4结果文件
-		origOutput := utils.Output
-		if utils.Output != "" {
-			utils.Output = "result_ipv4.csv"
-			utils.ExportCsv(ipv4SpeedData)
-		}
-		// 打印IPv4结果
-		fmt.Println("\n[IPv4] 测试结果:")
-		ipv4SpeedData.Print()
+		task.IPv6File = ""
+		utils.Output = utils.GetFilenameWithSuffix(originOutput, "ipv4")
+		ipv4SpeedData := singleSpeedTest() // 开始延迟测速 + 过滤延迟/丢包
+		ddnsSync(ipv4SpeedData)      // 同步到DNS
 
-		ipv4Results := []string{}
-		for i := 0; i < utils.PrintNum && i < len(ipv4SpeedData); i++ {
-			ipv4Results = append(ipv4Results, ipv4SpeedData[i].IP.String())
-		}
+		// 测试IPv6
+		fmt.Println("\n[IPv6] 开始测试IPv6...")
+		task.IPv4File = ""
+		task.IPv6File = origIPv6File
+		utils.Output = utils.GetFilenameWithSuffix(originOutput, "ipv6")
+		ipv6SpeedData := singleSpeedTest() // 开始延迟测速 + 过滤延迟/丢包
+		ddnsSync(ipv6SpeedData)      // 同步到DNS
 
-		// 如果启用了阿里云DNS，则同步结果
-		if enableAliDNS && len(ipv4Results) > 0 {
-			fmt.Println("\n开始同步结果到阿里云DNS...")
-			if err := ddns.SyncDNSRecords(ipv4Results, []string{}); err != nil {
-				utils.Red.Printf("同步到阿里云DNS失败: %v\n", err)
-			} else {
-				utils.Green.Println("同步到阿里云DNS成功!")
-			}
-		}
-
-		// 如果启用了DNSPod DNS，则同步结果
-		if enableDNSPod && len(ipv4Results) > 0 {
-			fmt.Println("\n开始同步结果到DNSPod DNS...")
-			if err := ddns.SyncDNSPodRecords(ipv4Results, []string{}); err != nil {
-				utils.Red.Printf("同步到DNSPod DNS失败: %v\n", err)
-			} else {
-				utils.Green.Println("同步到DNSPod DNS成功!")
-			}
-		}
-
-		// 如果启用了Cloudflare DNS，则同步结果
-		if enableCloudflare && len(ipv4Results) > 0 {
-			fmt.Println("\n开始同步结果到Cloudflare DNS...")
-			if err := ddns.SyncCloudflareRecords(ipv4Results, []string{}); err != nil {
-				utils.Red.Printf("同步到Cloudflare DNS失败: %v\n", err)
-			} else {
-				utils.Green.Println("同步到Cloudflare DNS成功!")
-			}
-		}
-
-		// 如果启用了Cloudflare KV，则同步结果
-		if enableCFKV && len(ipv4SpeedData) > 0 {
-			fmt.Println("\n开始同步结果到Cloudflare KV...")
-			if err := ddns.SyncCloudflareKV(ipv4SpeedData.FilterIPv4(), []utils.IPData{}); err != nil {
-				utils.Red.Printf("同步到Cloudflare KV失败: %v\n", err)
-			} else {
-				utils.Green.Println("同步到Cloudflare KV成功!")
-			}
-		}
-
-		// 再测试IPv6
 		// 恢复原始文件设置
 		task.IPv4File = origIPv4File
 		task.IPv6File = origIPv6File
-
-		// 仅测试IPv6
-		if task.IPv4File != "" {
-			task.IPv4File = ""
-		}
-		fmt.Println("\n[IPv6] 开始测试IPv6...")
-		// 开始延迟测速 + 过滤延迟/丢包
-		ipv6PingData := task.NewPing().Run().FilterDelay().FilterLossRate()
-		// 开始下载测速
-		ipv6SpeedData := task.TestDownloadSpeed(ipv6PingData)
-		// 输出到IPv6结果文件
-		if origOutput != "" {
-			utils.Output = "result_ipv6.csv"
-			utils.ExportCsv(ipv6SpeedData)
-		}
-		// 打印IPv6结果
-		fmt.Println("\n[IPv6] 测试结果:")
-		ipv6SpeedData.Print()
-
-		ipv6Results := []string{}
-		for i := 0; i < utils.PrintNum && i < len(ipv6SpeedData); i++ {
-			ipv6Results = append(ipv6Results, ipv6SpeedData[i].IP.String())
-		}
-
-		// 如果启用了阿里云DNS，则同步结果
-		if enableAliDNS && len(ipv6Results) > 0 {
-			fmt.Println("\n开始同步结果到阿里云DNS...")
-			if err := ddns.SyncDNSRecords([]string{}, ipv6Results); err != nil {
-				utils.Red.Printf("同步到阿里云DNS失败: %v\n", err)
-			} else {
-				utils.Green.Println("同步到阿里云DNS成功!")
-			}
-		}
-
-		// 如果启用了DNSPod DNS，则同步结果
-		if enableDNSPod && len(ipv6Results) > 0 {
-			fmt.Println("\n开始同步结果到DNSPod DNS...")
-			if err := ddns.SyncDNSPodRecords([]string{}, ipv6Results); err != nil {
-				utils.Red.Printf("同步到DNSPod DNS失败: %v\n", err)
-			} else {
-				utils.Green.Println("同步到DNSPod DNS成功!")
-			}
-		}
-
-		// 如果启用了Cloudflare DNS，则同步结果
-		if enableCloudflare && len(ipv6Results) > 0 {
-			fmt.Println("\n开始同步结果到Cloudflare DNS...")
-			if err := ddns.SyncCloudflareRecords([]string{}, ipv6Results); err != nil {
-				utils.Red.Printf("同步到Cloudflare DNS失败: %v\n", err)
-			} else {
-				utils.Green.Println("同步到Cloudflare DNS成功!")
-			}
-		}
-
-		// 如果启用了Cloudflare KV，则同步结果
-		if enableCFKV && len(ipv6SpeedData) > 0 {
-			fmt.Println("\n开始同步结果到Cloudflare KV...")
-			if err := ddns.SyncCloudflareKV([]utils.IPData{}, ipv6SpeedData.FilterIPv6()); err != nil {
-				utils.Red.Printf("同步到Cloudflare KV失败: %v\n", err)
-			} else {
-				utils.Green.Println("同步到Cloudflare KV成功!")
-			}
-		}
+		utils.Output = originOutput
 	} else {
-		// 开始延迟测速 + 过滤延迟/丢包
-		pingData := task.NewPing().Run().FilterDelay().FilterLossRate()
-		// 开始下载测速
-		speedData := task.TestDownloadSpeed(pingData)
-		utils.ExportCsv(speedData) // 输出文件
-		speedData.Print()          // 打印结果
+		ddnsSync(singleSpeedTest()) // 延迟测速 + 过滤延迟/丢包 + 同步到DNS
+	}
+}
 
-		// 根据结果类型分类
-		ipv4Results := []string{}
-		ipv6Results := []string{}
-		for i := 0; i < utils.PrintNum && i < len(speedData); i++ {
-			ip := speedData[i].IP.String()
-			if task.IsIPv4(ip) {
-				ipv4Results = append(ipv4Results, ip)
-			} else {
-				ipv6Results = append(ipv6Results, ip)
-			}
-		}
+func singleSpeedTest() utils.DownloadSpeedSet {
+	// 开始延迟测速 + 过滤延迟/丢包
+	pingData := task.NewPing().Run().FilterDelay().FilterLossRate()
+	// 开始下载测速
+	speedData := task.TestDownloadSpeed(pingData)
+	utils.ExportCsv(speedData) // 输出文件
+	speedData.Print()          // 打印结果
 
-		// 如果启用了阿里云DNS，则同步结果
-		if enableAliDNS && len(speedData) > 0 {
-			fmt.Println("\n开始同步结果到阿里云DNS...")
-			if err := ddns.SyncDNSRecords(ipv4Results, ipv6Results); err != nil {
-				utils.Red.Printf("同步到阿里云DNS失败: %v\n", err)
-			} else {
-				utils.Green.Println("同步到阿里云DNS成功!")
-			}
-		}
+	return speedData
+}
 
-		// 如果启用了DNSPod DNS，则同步结果
-		if enableDNSPod && len(speedData) > 0 {
-			fmt.Println("\n开始同步结果到DNSPod DNS...")
-			if err := ddns.SyncDNSPodRecords(ipv4Results, ipv6Results); err != nil {
-				utils.Red.Printf("同步到DNSPod DNS失败: %v\n", err)
-			} else {
-				utils.Green.Println("同步到DNSPod DNS成功!")
-			}
-		}
+func ddnsSync(speedData utils.DownloadSpeedSet) {
+	if len(speedData) == 0 {
+		return
+	}
 
-		// 如果启用了Cloudflare DNS，则同步结果
-		if enableCloudflare && len(speedData) > 0 {
-			fmt.Println("\n开始同步结果到Cloudflare DNS...")
-			if err := ddns.SyncCloudflareRecords(ipv4Results, ipv6Results); err != nil {
-				utils.Red.Printf("同步到Cloudflare DNS失败: %v\n", err)
-			} else {
-				utils.Green.Println("同步到Cloudflare DNS成功!")
-			}
-		}
-
-		// 如果启用了Cloudflare KV，则同步结果
-		if enableCFKV && len(speedData) > 0 {
-			fmt.Println("\n开始同步结果到Cloudflare KV...")
-			if err := ddns.SyncCloudflareKV(speedData.FilterIPv4(), speedData.FilterIPv6()); err != nil {
-				utils.Red.Printf("同步到Cloudflare KV失败: %v\n", err)
-			} else {
-				utils.Green.Println("同步到Cloudflare KV成功!")
-			}
+	// 根据结果类型分类
+	ipv4Results := []string{}
+	ipv6Results := []string{}
+	for i := 0; i < utils.PrintNum && i < len(speedData); i++ {
+		ip := speedData[i].IP.String()
+		if task.IsIPv4(ip) {
+			ipv4Results = append(ipv4Results, ip)
+		} else {
+			ipv6Results = append(ipv6Results, ip)
 		}
 	}
 
-	endPrint() // 根据情况选择退出方式（针对 Windows）
+	// 如果启用了阿里云DNS，则同步结果
+	if enableAliDNS {
+		fmt.Println("\n开始同步结果到阿里云DNS...")
+		if err := ddns.SyncDNSRecords(ipv4Results, ipv6Results); err != nil {
+			utils.Red.Printf("同步到阿里云DNS失败: %v\n", err)
+		} else {
+			utils.Green.Println("同步到阿里云DNS成功!")
+		}
+	}
+
+	// 如果启用了DNSPod DNS，则同步结果
+	if enableDNSPod {
+		fmt.Println("\n开始同步结果到DNSPod DNS...")
+		if err := ddns.SyncDNSPodRecords(ipv4Results, ipv6Results); err != nil {
+			utils.Red.Printf("同步到DNSPod DNS失败: %v\n", err)
+		} else {
+			utils.Green.Println("同步到DNSPod DNS成功!")
+		}
+	}
+
+	// 如果启用了Cloudflare DNS，则同步结果
+	if enableCloudflare {
+		fmt.Println("\n开始同步结果到Cloudflare DNS...")
+		if err := ddns.SyncCloudflareRecords(ipv4Results, ipv6Results); err != nil {
+			utils.Red.Printf("同步到Cloudflare DNS失败: %v\n", err)
+		} else {
+			utils.Green.Println("同步到Cloudflare DNS成功!")
+		}
+	}
+
+	// 如果启用了Cloudflare KV，则同步结果
+	if enableCFKV {
+		fmt.Println("\n开始同步结果到Cloudflare KV...")
+		if err := ddns.SyncCloudflareKV(speedData.FilterIPv4(), speedData.FilterIPv6()); err != nil {
+			utils.Red.Printf("同步到Cloudflare KV失败: %v\n", err)
+		} else {
+			utils.Green.Println("同步到Cloudflare KV成功!")
+		}
+	}
 }
 
 // 根据情况选择退出方式（针对 Windows）
