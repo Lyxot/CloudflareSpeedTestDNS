@@ -5,14 +5,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        发之前，请先搜下有没有类似的 [**Issues**](https://github.com/Lyxot/CloudflareSpeedTestDNS.git/issues)、[**Discussions**](https://github.com/Lyxot/CloudflareSpeedTestDNS.git/discussions) 问题（包括[**已关闭**](https://github.com/Lyxot/CloudflareSpeedTestDNS.git/issues?q=is%3Aissue+is%3Aclosed)的），请勿重复发起！
+        发之前，请先搜下有没有类似的 [**Issues**](https://github.com/Lyxot/CloudflareSpeedTestDNS/issues)、[**Discussions**](https://github.com/Lyxot/CloudflareSpeedTestDNS/discussions) 问题（包括[**已关闭**](https://github.com/Lyxot/CloudflareSpeedTestDNS/issues?q=is%3Aissue+is%3Aclosed)的），请勿重复发起！
 
         > [!NOTE]
-        > 注意！如果你提的功能建议和 CFST **软件本身功能无关**，请**前往讨论区** (💬 [**Discussions**](https://github.com/Lyxot/CloudflareSpeedTestDNS.git/discussions)) 发帖交流！
+        > 注意！如果你提的功能建议和 CFSTD **软件本身功能无关**，请**前往讨论区** (💬 [**Discussions**](https://github.com/Lyxot/CloudflareSpeedTestDNS/discussions)) 发帖交流！
 
         > [!TIP]
         > 另外，不接受**个性化**的小众功能请求（即 **很少人** 或 **只有你自己** 才会用到的功能）
-        ****https://github.com/Lyxot/CloudflareSpeedTestDNS.git
+        ****https://github.com/Lyxot/CloudflareSpeedTestDNS
   - type: textarea
     id: description
     attributes:
