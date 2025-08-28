@@ -10,26 +10,16 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/Lyxot/CloudflareSpeedTestDNS/conf"
 	"github.com/Lyxot/CloudflareSpeedTestDNS/ddns"
 	"github.com/Lyxot/CloudflareSpeedTestDNS/task"
 	"github.com/Lyxot/CloudflareSpeedTestDNS/utils"
 )
 
 var (
-	version             string
-	gitCommit           string
-
-	configFile          string
-	enableAliDNS        bool
-	enableCloudflare    bool
-	enableCFKV          bool
-	enableDNSPod        bool
-
-	enableCron        bool
-	latencyThreshold  time.Duration
-	lossRateThreshold float32
-	checkInterval     time.Duration
-	testInterval      time.Duration
+	version    string
+	gitCommit  string
+	configFile string
 )
 
 func init() {
@@ -78,25 +68,26 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 		os.Exit(0)
 	}
 
-	var config *Config
+	var config *conf.Config
 	var err error
 
 	if configFile != "" {
 		// 如果指定了配置文件，则加载它
-		config, err = LoadConfig(configFile)
+		config, err = conf.LoadConfig(configFile)
 		if err != nil {
 			utils.LogFatal("加载配置文件失败: %v", err)
 		}
 	} else {
 		// 如果未指定配置文件，则尝试加载默认的 config.toml
-		config, err = LoadConfig("config.toml")
+		config, err = conf.LoadConfig("config.toml")
 		if err != nil {
-			utils.LogWarn("加载配置文件 [config.toml] 失败: %v，使用默认配置", err)
-			config = CreateDefaultConfig()
+			utils.LogWarn("加载配置文件 [config.toml] 失败: %v，改用默认配置", err)
+			config = conf.CreateDefaultConfig()
 		}
 	}
 
-	ApplyConfig(config)
+	conf.LoadEnvConfig(config)
+	conf.ApplyConfig(config)
 
 	// 如果通过命令行指定了 -debug，则覆盖配置文件中的设置
 	flag.Visit(func(f *flag.Flag) {
@@ -117,7 +108,7 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 
 func main() {
 	utils.LogInfo("# Lyxot/CloudflareSpeedTestDNS %s-%s", version, gitCommit)
-	if enableCron {
+	if conf.EnableCron {
 		cron() // 定时任务
 	} else {
 		speedTest() // 开始测速
@@ -130,15 +121,15 @@ func cron() {
 	ipData := speedTest()
 
 	// 设置定时器
-	testTicker := time.NewTicker(testInterval)
-	checkTicker := time.NewTicker(checkInterval)
+	testTicker := time.NewTicker(conf.TestInterval)
+	checkTicker := time.NewTicker(conf.CheckInterval)
 
 	for {
 		select {
 		case <-testTicker.C:
 			utils.LogInfo("强制刷新任务开始...")
 			ipData = speedTest()
-			checkTicker.Reset(checkInterval)
+			checkTicker.Reset(conf.CheckInterval)
 		case <-checkTicker.C:
 			utils.LogInfo("开始检查延迟和丢包率...")
 			// 拼接 IP 段数据
@@ -152,8 +143,8 @@ func cron() {
 			origMaxLossRate := utils.InputMaxLossRate
 
 			task.IPText = ipText
-			utils.InputMaxDelay = latencyThreshold
-			utils.InputMaxLossRate = lossRateThreshold
+			utils.InputMaxDelay = conf.LatencyThreshold
+			utils.InputMaxLossRate = conf.LossRateThreshold
 			pingData := task.NewPing().Run().FilterDelay().FilterLossRate()
 
 			// 恢复原始设置
@@ -164,7 +155,7 @@ func cron() {
 			if len(pingData) != len(ipData) {
 				utils.LogInfo("延迟或丢包率超过阈值，开始新一轮测速...")
 				ipData = speedTest()
-				testTicker.Reset(testInterval)
+				testTicker.Reset(conf.TestInterval)
 			} else {
 				utils.LogInfo("延迟和丢包率在阈值范围内")
 			}
@@ -234,7 +225,7 @@ func ddnsSync(speedData utils.DownloadSpeedSet) []string {
 	}
 
 	// 如果启用了阿里云DNS，则同步结果
-	if enableAliDNS {
+	if conf.EnableAliDNS {
 		utils.LogInfo("开始同步结果到阿里云DNS...")
 		if err := ddns.SyncDNSRecords(ipv4Results, ipv6Results); err != nil {
 			utils.LogError("同步到阿里云DNS失败: %v", err)
@@ -244,7 +235,7 @@ func ddnsSync(speedData utils.DownloadSpeedSet) []string {
 	}
 
 	// 如果启用了DNSPod DNS，则同步结果
-	if enableDNSPod {
+	if conf.EnableDNSPod {
 		utils.LogInfo("开始同步结果到DNSPod DNS...")
 		if err := ddns.SyncDNSPodRecords(ipv4Results, ipv6Results); err != nil {
 			utils.LogError("同步到DNSPod DNS失败: %v", err)
@@ -254,7 +245,7 @@ func ddnsSync(speedData utils.DownloadSpeedSet) []string {
 	}
 
 	// 如果启用了Cloudflare DNS，则同步结果
-	if enableCloudflare {
+	if conf.EnableCloudflare {
 		utils.LogInfo("开始同步结果到Cloudflare DNS...")
 		if err := ddns.SyncCloudflareRecords(ipv4Results, ipv6Results); err != nil {
 			utils.LogError("同步到Cloudflare DNS失败: %v", err)
@@ -264,7 +255,7 @@ func ddnsSync(speedData utils.DownloadSpeedSet) []string {
 	}
 
 	// 如果启用了Cloudflare KV，则同步结果
-	if enableCFKV {
+	if conf.EnableCFKV {
 		utils.LogInfo("开始同步结果到Cloudflare KV...")
 		if err := ddns.SyncCloudflareKV(speedData.FilterIPv4(), speedData.FilterIPv6()); err != nil {
 			utils.LogError("同步到Cloudflare KV失败: %v", err)

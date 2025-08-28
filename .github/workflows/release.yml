@@ -96,6 +96,7 @@ jobs:
 
       - name: Package
         run: |
+          mv conf/config.example.toml config.example.toml
           if [ ${{ matrix.goos }} = 'windows' ]; then
             7z a ${{ matrix.artifact_name }}-$(git describe --tags --abbrev=0).zip cfstd.exe ip.txt ipv6.txt config.example.toml LICENSE
           else

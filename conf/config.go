@@ -1,4 +1,4 @@
-package main
+package conf
 
 import (
 	"fmt"
@@ -11,12 +11,24 @@ import (
 	"github.com/Lyxot/CloudflareSpeedTestDNS/utils"
 )
 
+var (
+	EnableAliDNS     bool
+	EnableCloudflare bool
+	EnableCFKV       bool
+	EnableDNSPod     bool
+	EnableCron       bool
+	LatencyThreshold time.Duration
+	LossRateThreshold float32
+	CheckInterval    time.Duration
+	TestInterval     time.Duration
+)
+
 // Config 配置文件结构体
 type Config struct {
 	// 延迟测速相关
 	Routines    int     `toml:"routines"`      // 延迟测速线程
 	PingTimes   int     `toml:"ping_times"`    // 延迟测速次数
-	TCPPort     int     `toml:"tcp_port"`      // 指定测速端口
+	TcpPort     int     `toml:"tcp_port"`      // 指定测速端口
 	MaxDelay    int     `toml:"max_delay"`     // 平均延迟上限
 	MinDelay    int     `toml:"min_delay"`     // 平均延迟下限
 	MaxLossRate float64 `toml:"max_loss_rate"` // 丢包几率上限
@@ -24,21 +36,21 @@ type Config struct {
 	// HTTP测速相关
 	Httping     bool   `toml:"httping"`      // 切换测速模式为HTTP
 	HttpingCode int    `toml:"httping_code"` // 有效状态代码
-	CFColo      string `toml:"cfcolo"`       // 匹配指定地区
+	Cfcolo      string `toml:"cfcolo"`       // 匹配指定地区
 
 	// 下载测速相关
 	TestCount    int     `toml:"test_count"`       // 下载测速数量
 	DownloadTime int     `toml:"download_time"`    // 下载测速时间
-	URL          string  `toml:"url"`              // 指定测速地址
+	Url          string  `toml:"url"`              // 指定测速地址
 	MinSpeed     float64 `toml:"min_speed"`        // 下载速度下限
-	Disable      bool    `toml:"disable_download"` // 禁用下载测速
+	DisableDownload      bool    `toml:"disable_download"` // 禁用下载测速
 
 	// 输入输出相关
 	PrintNum int    `toml:"print_num"` // 显示结果数量
-	IPFile   string `toml:"ip_file"`   // IP段数据文件
-	IPv4File string `toml:"ipv4_file"` // IPv4段数据文件
-	IPv6File string `toml:"ipv6_file"` // IPv6段数据文件
-	IPText   string `toml:"ip_text"`   // 指定IP段数据
+	IpFile   string `toml:"ip_file"`   // IP段数据文件
+	Ipv4File string `toml:"ipv4_file"` // IPv4段数据文件
+	Ipv6File string `toml:"ipv6_file"` // IPv6段数据文件
+	IpText   string `toml:"ip_text"`   // 指定IP段数据
 	Output   string `toml:"output"`    // 输出结果文件
 	LogFile  string `toml:"log_file"`  // 日志文件
 
@@ -47,16 +59,16 @@ type Config struct {
 	Debug   bool `toml:"debug"`   // 调试输出模式
 
 	// 阿里云DNS相关
-	AliDNS AliDNSConfig `toml:"alidns"` // 阿里云DNS配置
+	Alidns AliDNSConfig `toml:"alidns"` // 阿里云DNS配置
 
-	// DNSPod DNS相关
-	DNSPod DNSPodConfig `toml:"dnspod"` // DNSPod DNS配置
+	// Dnspod DNS相关
+	Dnspod DNSPodConfig `toml:"dnspod"` // DNSPod DNS配置
 
 	// Cloudflare DNS相关
 	Cloudflare CloudflareConfig `toml:"cloudflare"` // Cloudflare DNS配置
 
 	// Cloudflare KV相关
-	CFKV CloudflareKVConfig `toml:"cfkv"` // Cloudflare KV配置
+	Cfkv CloudflareKVConfig `toml:"cfkv"` // Cloudflare KV配置
 
 	// Cron 定时任务相关
 	Cron CronConfig `toml:"cron"`
@@ -134,31 +146,31 @@ func CreateDefaultConfig() *Config {
 	return &Config{
 		Routines:     200,
 		PingTimes:    4,
-		TCPPort:      443,
+		TcpPort:      443,
 		MaxDelay:     9999,
 		MinDelay:     0,
 		MaxLossRate:  1.0,
 		Httping:      false,
 		HttpingCode:  0,
-		CFColo:       "",
+		Cfcolo:       "",
 		TestCount:    10,
 		DownloadTime: 10,
-		URL:          "https://cf.xiu2.xyz/url",
+		Url:          "https://cf.xiu2.xyz/url",
 		MinSpeed:     0.0,
-		Disable:      false,
+		DisableDownload:      false,
 		PrintNum:     10,
-		IPFile:       "ip.txt",
-		IPv4File:     "",
-		IPv6File:     "",
-		IPText:       "",
+		IpFile:       "ip.txt",
+		Ipv4File:     "",
+		Ipv6File:     "",
+		IpText:       "",
 		Output:       "result.csv",
 		LogFile:      "",
 		TestAll:      false,
-		AliDNS: AliDNSConfig{
+		Alidns: AliDNSConfig{
 			Enable: false,
 			TTL:    600,
 		},
-		DNSPod: DNSPodConfig{
+		Dnspod: DNSPodConfig{
 			Enable: false,
 			TTL:    600,
 		},
@@ -167,7 +179,7 @@ func CreateDefaultConfig() *Config {
 			Proxied: false,
 			TTL:     1,
 		},
-		CFKV: CloudflareKVConfig{
+		Cfkv: CloudflareKVConfig{
 			Enable: false,
 		},
 		Cron: CronConfig{
@@ -191,8 +203,8 @@ func ApplyConfig(config *Config) {
 		task.PingTimes = config.PingTimes
 	}
 
-	if config.TCPPort > 0 {
-		task.TCPPort = config.TCPPort
+	if config.TcpPort > 0 {
+		task.TCPPort = config.TcpPort
 	}
 
 	// 设置HTTP测速相关参数
@@ -202,8 +214,8 @@ func ApplyConfig(config *Config) {
 		task.HttpingStatusCode = config.HttpingCode
 	}
 
-	if config.CFColo != "" {
-		task.HttpingCFColo = config.CFColo
+	if config.Cfcolo != "" {
+		task.HttpingCFColo = config.Cfcolo
 		task.HttpingCFColomap = task.MapColoMap()
 	}
 
@@ -216,35 +228,35 @@ func ApplyConfig(config *Config) {
 		task.Timeout = time.Duration(config.DownloadTime) * time.Second
 	}
 
-	if config.URL != "" {
-		task.URL = config.URL
+	if config.Url != "" {
+		task.URL = config.Url
 	}
 
 	if config.MinSpeed >= 0 {
 		task.MinSpeed = config.MinSpeed
 	}
 
-	task.Disable = config.Disable
+	task.Disable = config.DisableDownload
 
 	// 设置输入输出相关参数
-	if config.IPFile != "" {
-		task.IPFile = config.IPFile
+	if config.IpFile != "" {
+		task.IPFile = config.IpFile
 	}
 
-	if config.IPv4File != "" {
-		task.IPv4File = config.IPv4File
+	if config.Ipv4File != "" {
+		task.IPv4File = config.Ipv4File
 	}
 
-	if config.IPv6File != "" {
-		task.IPv6File = config.IPv6File
+	if config.Ipv6File != "" {
+		task.IPv6File = config.Ipv6File
 	}
 
-	if config.IPText != "" {
-		task.IPText = config.IPText
+	if config.IpText != "" {
+		task.IPText = config.IpText
 	}
 
 	// 智能判断文件优先级
-	if config.IPv4File != "" || config.IPv6File != "" {
+	if config.Ipv4File != "" || config.Ipv6File != "" {
 		// 如果指定了ipv4_file或ipv6_file，则ip_file参数无效
 		task.IPFile = ""
 	}
@@ -254,23 +266,23 @@ func ApplyConfig(config *Config) {
 	utils.Debug = config.Debug
 
 	// 设置阿里云DNS相关参数
-	enableAliDNS = config.AliDNS.Enable
-	ddns.AliDNSConfig.AccessKeyID = config.AliDNS.AccessKeyID
-	ddns.AliDNSConfig.AccessKeySecret = config.AliDNS.AccessKeySecret
-	ddns.AliDNSConfig.Domain = config.AliDNS.Domain
-	ddns.AliDNSConfig.Subdomain = config.AliDNS.Subdomain
-	ddns.AliDNSConfig.TTL = config.AliDNS.TTL
+	EnableAliDNS = config.Alidns.Enable
+	ddns.AliDNSConfig.AccessKeyID = config.Alidns.AccessKeyID
+	ddns.AliDNSConfig.AccessKeySecret = config.Alidns.AccessKeySecret
+	ddns.AliDNSConfig.Domain = config.Alidns.Domain
+	ddns.AliDNSConfig.Subdomain = config.Alidns.Subdomain
+	ddns.AliDNSConfig.TTL = config.Alidns.TTL
 
 	// 设置DNSPod DNS相关参数
-	enableDNSPod = config.DNSPod.Enable
-	ddns.DNSPodConfig.SecretID = config.DNSPod.SecretID
-	ddns.DNSPodConfig.SecretKey = config.DNSPod.SecretKey
-	ddns.DNSPodConfig.Domain = config.DNSPod.Domain
-	ddns.DNSPodConfig.Subdomain = config.DNSPod.Subdomain
-	ddns.DNSPodConfig.TTL = config.DNSPod.TTL
+	EnableDNSPod = config.Dnspod.Enable
+	ddns.DNSPodConfig.SecretID = config.Dnspod.SecretID
+	ddns.DNSPodConfig.SecretKey = config.Dnspod.SecretKey
+	ddns.DNSPodConfig.Domain = config.Dnspod.Domain
+	ddns.DNSPodConfig.Subdomain = config.Dnspod.Subdomain
+	ddns.DNSPodConfig.TTL = config.Dnspod.TTL
 
 	// 设置Cloudflare DNS相关参数
-	enableCloudflare = config.Cloudflare.Enable
+	EnableCloudflare = config.Cloudflare.Enable
 	ddns.CloudflareConfig.APIToken = config.Cloudflare.APIToken
 	ddns.CloudflareConfig.ZoneID = config.Cloudflare.ZoneID
 	ddns.CloudflareConfig.Domain = config.Cloudflare.Domain
@@ -279,10 +291,10 @@ func ApplyConfig(config *Config) {
 	ddns.CloudflareConfig.TTL = config.Cloudflare.TTL
 
 	// 设置Cloudflare KV相关参数
-	enableCFKV = config.CFKV.Enable
-	ddns.CloudflareKVConfig.APIToken = config.CFKV.APIToken
-	ddns.CloudflareKVConfig.AccountID = config.CFKV.AccountID
-	ddns.CloudflareKVConfig.NamespaceID = config.CFKV.NamespaceID
+	EnableCFKV = config.Cfkv.Enable
+	ddns.CloudflareKVConfig.APIToken = config.Cfkv.APIToken
+	ddns.CloudflareKVConfig.AccountID = config.Cfkv.AccountID
+	ddns.CloudflareKVConfig.NamespaceID = config.Cfkv.NamespaceID
 
 	// 设置输入输出相关参数
 	if config.PrintNum >= 0 {
@@ -312,18 +324,18 @@ func ApplyConfig(config *Config) {
 
 	// 设置Cron定时任务相关参数
 	if config.Cron.Enable {
-		enableCron = true
+		EnableCron = true
 		if config.Cron.LatencyThreshold > 0 {
-			latencyThreshold = time.Duration(config.Cron.LatencyThreshold) * time.Millisecond
+			LatencyThreshold = time.Duration(config.Cron.LatencyThreshold) * time.Millisecond
 		}
 		if config.Cron.LossRateThreshold >= 0 && config.Cron.LossRateThreshold <= 1 {
-			lossRateThreshold = float32(config.Cron.LossRateThreshold)
+			LossRateThreshold = float32(config.Cron.LossRateThreshold)
 		}
 		if config.Cron.CheckInterval > 0 {
-			checkInterval = time.Duration(config.Cron.CheckInterval) * time.Minute
+			CheckInterval = time.Duration(config.Cron.CheckInterval) * time.Minute
 		}
 		if config.Cron.TestInterval > 0 {
-			testInterval = time.Duration(config.Cron.TestInterval) * time.Hour
+			TestInterval = time.Duration(config.Cron.TestInterval) * time.Hour
 		}
 	}
 }

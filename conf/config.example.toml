@@ -1,6 +1,5 @@
 # CloudflareSpeedTestDNS 示例配置文件
-# 使用方式: ./cfst -c config.toml
-# 注意: 指定配置文件时，命令行参数将被忽略，所有参数从配置文件中读取
+# 使用方式: ./cfstd -c config.toml
 
 #######################
 # 延迟测速相关参数
