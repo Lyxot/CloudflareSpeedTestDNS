@@ -11,10 +11,11 @@ import (
 
 // 日志级别常量
 const (
-	LOG_INFO  = "INFO"
-	LOG_ERROR = "ERROR"
-	LOG_WARN  = "WARN"
 	LOG_DEBUG = "DEBUG"
+	LOG_INFO  = "INFO"
+	LOG_WARN  = "WARN"
+	LOG_ERROR = "ERROR"
+	LOG_FATAL = "FATAL"
 )
 
 // LogInfo 输出信息日志
@@ -35,6 +36,12 @@ func LogWarn(format string, args ...interface{}) {
 // LogDebug 输出调试日志
 func LogDebug(format string, args ...interface{}) {
 	logMessage(LOG_DEBUG, format, args...)
+}
+
+// LogFatal 输出致命错误日志并退出
+func LogFatal(format string, args ...interface{}) {
+	logMessage(LOG_FATAL, format, args...)
+	os.Exit(1)
 }
 
 var (
@@ -78,15 +85,21 @@ func logMessage(level string, format string, args ...interface{}) {
 
 	// 根据日志级别选择颜色
 	var levelColor *color.Color
+	output := os.Stdout
 	switch level {
-	case LOG_INFO:
-		levelColor = White
-	case LOG_ERROR:
-		levelColor = Red
-	case LOG_WARN:
-		levelColor = Red
 	case LOG_DEBUG:
 		levelColor = Yellow
+	case LOG_INFO:
+		levelColor = White
+	case LOG_WARN:
+		levelColor = Red
+		output = os.Stderr
+	case LOG_ERROR:
+		levelColor = Red
+		output = os.Stderr
+	case LOG_FATAL:
+		levelColor = Red
+		output = os.Stderr
 	default:
 		levelColor = White
 	}
@@ -95,9 +108,9 @@ func logMessage(level string, format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
 
 	// 输出到屏幕
-	Green.Printf("%s ", timestamp)
-	levelColor.Printf("%s", level)
-	fmt.Printf(" %s\n", message)
+	Green.Fprintf(output, "%s ", timestamp)
+	levelColor.Fprintf(output, "%s", level)
+	fmt.Fprintf(output, " %s\n", message)
 
 	// 如果配置了日志文件，同时输出到文件
 	if LogFile != "" {

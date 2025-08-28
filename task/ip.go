@@ -2,8 +2,8 @@ package task
 
 import (
 	"bufio"
+	"github.com/Lyxot/CloudflareSpeedTestDNS/utils"
 	"io"
-	"log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -92,7 +92,7 @@ func (r *IPRanges) fixIP(ip string) string {
 func (r *IPRanges) parseCIDR(ip string) {
 	var err error
 	if r.firstIP, r.ipNet, err = net.ParseCIDR(r.fixIP(ip)); err != nil {
-		log.Fatalln("ParseCIDR err", err)
+		utils.LogFatal("ParseCIDR err: %v", err)
 	}
 }
 
@@ -229,12 +229,12 @@ func loadIPRanges() []*net.IPAddr {
 		if isURL(filename) {
 			lines, err = readIPsFromURL(filename)
 			if err != nil {
-				log.Fatalln("readIPsFromURL err", err)
+				utils.LogFatal("readIPsFromURL err: %v", err)
 			}
 		} else {
 			file, err := os.Open(filename)
 			if err != nil {
-				log.Fatalln("os.Open err", err)
+				utils.LogFatal("os.Open err: %v", err)
 			}
 			defer file.Close()
 			scanner := bufio.NewScanner(file)

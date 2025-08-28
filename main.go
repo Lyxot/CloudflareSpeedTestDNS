@@ -67,7 +67,7 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 		fmt.Println("检查版本更新中...")
 		versionNew, err := checkUpdate()
 		if err != nil {
-			utils.LogError("检查版本更新失败: %v", err)
+			utils.Red.Printf("检查版本更新失败: %v", err)
 		} else if versionNew != "" && versionNew != version {
 			utils.Yellow.Printf("*** 发现新版本 [%s]！请前往 [https://github.com/Lyxot/CloudflareSpeedTestDNS/releases/latest] 更新！ ***", versionNew)
 		} else {
@@ -85,15 +85,13 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 		// 如果指定了配置文件，则加载它
 		config, err = LoadConfig(configFile)
 		if err != nil {
-			utils.LogError("加载配置文件失败: %v", err)
-			endPrint()
-			os.Exit(1)
+			utils.LogFatal("加载配置文件失败: %v", err)
 		}
 	} else {
 		// 如果未指定配置文件，则尝试加载默认的 config.toml
 		config, err = LoadConfig("config.toml")
 		if err != nil {
-			// 如果加载失败，则使用默认配置
+			utils.LogWarn("加载配置文件 [config.toml] 失败: %v，使用默认配置", err)
 			config = CreateDefaultConfig()
 		}
 	}
@@ -109,9 +107,7 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 
 	// 初始化日志文件
 	if err := utils.InitLogFile(); err != nil {
-		utils.LogError("初始化日志文件失败: %v", err)
-		endPrint()
-		os.Exit(1)
+		utils.LogFatal("初始化日志文件失败: %v", err)
 	}
 
 	if task.MinSpeed > 0 && config.MaxDelay == 9999 {
