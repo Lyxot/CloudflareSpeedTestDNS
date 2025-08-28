@@ -34,8 +34,7 @@ var (
 
 func init() {
 	var printVersion, checkUpdateFlag bool
-	var help = `
-CloudflareSpeedTestDNS ` + version + `
+	var help = `CloudflareSpeedTestDNS ` + version + `-` + gitCommit + `
 测试各个 CDN 或网站所有 IP 的延迟和速度，获取最快 IP (IPv4+IPv6)！
 https://github.com/Lyxot/CloudflareSpeedTestDNS
 
