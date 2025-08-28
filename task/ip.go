@@ -2,13 +2,36 @@ package task
 
 import (
 	"bufio"
+	"io"
 	"log"
 	"math/rand"
 	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 )
+
+// isURL a string is a URL
+func isURL(s string) bool {
+	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
+}
+
+// readIPsFromURL downloads the content from a URL and returns it as a slice of strings
+func readIPsFromURL(url string) ([]string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return strings.Split(string(body), "\n"), nil
+}
 
 const defaultInputFile = "ip.txt"
 
@@ -200,15 +223,29 @@ func loadIPRanges() []*net.IPAddr {
 			filename = IPFile
 		}
 
-		file, err := os.Open(filename)
-		if err != nil {
-			log.Fatal(err)
+		var lines []string
+		var err error
+
+		if isURL(filename) {
+			lines, err = readIPsFromURL(filename)
+			if err != nil {
+				log.Fatalln("readIPsFromURL err", err)
+			}
+		} else {
+			file, err := os.Open(filename)
+			if err != nil {
+				log.Fatalln("os.Open err", err)
+			}
+			defer file.Close()
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				lines = append(lines, scanner.Text())
+			}
 		}
-		defer file.Close()
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() { // 循环遍历文件每一行
-			line := strings.TrimSpace(scanner.Text()) // 去除首尾的空白字符（空格、制表符、换行符等）
-			if line == "" {                           // 跳过空行
+
+		for _, line := range lines {
+			line = strings.TrimSpace(line) // 去除首尾的空白字符（空格、制表符、换行符等）
+			if line == "" {                  // 跳过空行
 				continue
 			}
 			// 根据当前模式决定是否处理该IP
