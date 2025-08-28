@@ -33,7 +33,7 @@ var (
 )
 
 func init() {
-	var printVersion, checkUpdateFlag bool
+	var printVersion, checkUpdateFlag, debugFlag bool
 	var help = `CloudflareSpeedTestDNS ` + version + `-` + gitCommit + `
 测试各个 CDN 或网站所有 IP 的延迟和速度，获取最快 IP (IPv4+IPv6)！
 https://github.com/Lyxot/CloudflareSpeedTestDNS
@@ -50,7 +50,7 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
     -h
         打印帮助说明
 `
-	flag.BoolVar(&utils.Debug, "debug", false, "调试输出模式")
+	flag.BoolVar(&debugFlag, "debug", false, "调试输出模式")
 	flag.StringVar(&configFile, "c", "", "指定TOML配置文件")
 	flag.BoolVar(&printVersion, "v", false, "打印程序版本")
 	flag.BoolVar(&checkUpdateFlag, "u", false, "检查版本更新")
@@ -99,6 +99,13 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 	}
 
 	ApplyConfig(config)
+
+	// 如果通过命令行指定了 -debug，则覆盖配置文件中的设置
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "debug" {
+			utils.Debug = debugFlag
+		}
+	})
 
 	// 初始化日志文件
 	if err := utils.InitLogFile(); err != nil {

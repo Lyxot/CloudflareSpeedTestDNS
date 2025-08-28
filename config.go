@@ -44,6 +44,7 @@ type Config struct {
 
 	// 其他选项
 	TestAll bool `toml:"test_all"` // 测速全部IP
+	Debug   bool `toml:"debug"`   // 调试输出模式
 
 	// 阿里云DNS相关
 	AliDNS AliDNSConfig `toml:"alidns"` // 阿里云DNS配置
@@ -250,6 +251,7 @@ func ApplyConfig(config *Config) {
 
 	// 设置其他选项
 	task.TestAll = config.TestAll
+	utils.Debug = config.Debug
 
 	// 设置阿里云DNS相关参数
 	enableAliDNS = config.AliDNS.Enable
