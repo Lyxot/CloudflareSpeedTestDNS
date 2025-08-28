@@ -24,7 +24,7 @@
 - **Apple Silicon Mac**: 需要 macOS 11.0 或更高版本
 
 ### Linux
-- 最低要求 Linux 内核 3.2 或更高版本 以及 glibc 2.17 或更高版本
+- 最低要求 Linux 内核 3.2 或更高版本
 
 ### Windows
 - 最低要求 Windows 10 或 Windows Server 2016
