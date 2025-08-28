@@ -69,6 +69,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Set up Go
         uses: actions/setup-go@v5

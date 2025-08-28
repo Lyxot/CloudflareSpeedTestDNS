@@ -71,6 +71,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -111,6 +114,12 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -118,7 +127,16 @@ jobs:
           pattern: cfstd-*
           merge-multiple: true
 
+      - name: Get tag
+        id: get_tag
+        run: echo "tag=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
+
+      - name: Update RELEASE_NOTES.md
+        run: sed -i "s/__VERSION__/${{ steps.get_tag.outputs.tag }}/g" RELEASE_NOTES.md
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.get_tag.outputs.tag }}
+          body_path: RELEASE_NOTES.md
           files: release-assets/*.zip
