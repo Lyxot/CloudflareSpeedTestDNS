@@ -59,6 +59,7 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 
 	if printVersion {
 		fmt.Printf("CloudflareSpeedTestDNS version %s, build %s, %s\n", version, gitCommit, runtime.Version())
+		endPrint()
 		os.Exit(0)
 	}
 
@@ -72,6 +73,8 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 		} else {
 			utils.Green.Println("当前为最新版本 [" + version + "]！")
 		}
+		fmt.Printf("\n")
+		endPrint()
 		os.Exit(0)
 	}
 
@@ -83,6 +86,7 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 		config, err = LoadConfig(configFile)
 		if err != nil {
 			utils.LogError("加载配置文件失败: %v", err)
+			endPrint()
 			os.Exit(1)
 		}
 	} else {
@@ -99,6 +103,7 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 	// 初始化日志文件
 	if err := utils.InitLogFile(); err != nil {
 		utils.LogError("初始化日志文件失败: %v", err)
+		endPrint()
 		os.Exit(1)
 	}
 
