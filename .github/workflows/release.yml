@@ -1,12 +1,14 @@
-name: Build
+name: Release
 
 on:
   push:
-    branches:
-      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
-  build:
+  build-release:
+    name: Build Release
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -83,13 +85,40 @@ jobs:
           GOMIPS: ${{ matrix.gomips }}
         run: |
           if [ ${{ matrix.goos }} = 'windows' ]; then
-            go build -v -o cfstd.exe -ldflags="-s -w -X main.version=$(git describe --tags --abbrev=0)-dev -X main.gitCommit=$(git rev-parse --short HEAD)"
+            go build -v -o cfstd.exe -ldflags="-s -w -X main.version=$(git describe --tags --abbrev=0) -X main.gitCommit=$(git rev-parse --short HEAD)"
           else
-            go build -v -o cfstd -ldflags="-s -w -X main.version=$(git describe --tags --abbrev=0)-dev -X main.gitCommit=$(git rev-parse --short HEAD)"
+            go build -v -o cfstd -ldflags="-s -w -X main.version=$(git describe --tags --abbrev=0) -X main.gitCommit=$(git rev-parse --short HEAD)"
+          fi
+
+      - name: Package
+        run: |
+          if [ ${{ matrix.goos }} = 'windows' ]; then
+            7z a ${{ matrix.artifact_name }}-$(git describe --tags --abbrev=0).zip cfstd.exe ip.txt ipv6.txt config.example.toml LICENSE
+          else
+            zip ${{ matrix.artifact_name }}-$(git describe --tags --abbrev=0).zip cfstd ip.txt ipv6.txt config.example.toml LICENSE
           fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: cfstd*
+          path: cfstd-*.zip
+
+  release:
+    name: Release
+    needs: build-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: cfstd-*
+          merge-multiple: true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*.zip

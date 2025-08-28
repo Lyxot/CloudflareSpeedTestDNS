@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -15,7 +16,9 @@ import (
 )
 
 var (
-	version, versionNew string
+	version             string
+	gitCommit           string
+
 	configFile          string
 	enableAliDNS        bool
 	enableCloudflare    bool
@@ -30,7 +33,7 @@ var (
 )
 
 func init() {
-	var printVersion bool
+	var printVersion, checkUpdateFlag bool
 	var help = `
 CloudflareSpeedTestDNS ` + version + `
 测试各个 CDN 或网站所有 IP 的延迟和速度，获取最快 IP (IPv4+IPv6)！
@@ -42,15 +45,36 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
     -debug
         调试输出模式；会在一些非预期情况下输出更多日志以便判断原因；(默认 关闭)
     -v
-        打印程序版本并检查版本更新
+        打印程序版本
+    -u
+        检查版本更新
     -h
         打印帮助说明
 `
 	flag.BoolVar(&utils.Debug, "debug", false, "调试输出模式")
 	flag.StringVar(&configFile, "c", "", "指定TOML配置文件")
 	flag.BoolVar(&printVersion, "v", false, "打印程序版本")
+	flag.BoolVar(&checkUpdateFlag, "u", false, "检查版本更新")
 	flag.Usage = func() { fmt.Print(help) }
 	flag.Parse()
+
+	if printVersion {
+		fmt.Printf("CloudflareSpeedTestDNS version %s, build %s, %s\n", version, gitCommit, runtime.Version())
+		os.Exit(0)
+	}
+
+	if checkUpdateFlag {
+		fmt.Println("检查版本更新中...")
+		versionNew, err := checkUpdate()
+		if err != nil {
+			utils.LogError("检查版本更新失败: %v", err)
+		} else if versionNew != "" && versionNew != version {
+			utils.Yellow.Printf("*** 发现新版本 [%s]！请前往 [https://github.com/Lyxot/CloudflareSpeedTestDNS/releases/latest] 更新！ ***", versionNew)
+		} else {
+			utils.Green.Println("当前为最新版本 [" + version + "]！")
+		}
+		os.Exit(0)
+	}
 
 	var config *Config
 	var err error
@@ -82,22 +106,10 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 	if task.MinSpeed > 0 && config.MaxDelay == 9999 {
 		utils.LogWarn("配置了 min_speed 参数时，建议搭配 max_delay 参数，以避免因凑不够 test_count 数量而一直测速...")
 	}
-
-	if printVersion {
-		println(version)
-		fmt.Println("检查版本更新中...")
-		checkUpdate()
-		if versionNew != "" {
-			utils.Yellow.Printf("*** 发现新版本 [%s]！请前往 [https://github.com/Lyxot/CloudflareSpeedTestDNS] 更新！ ***", versionNew)
-		} else {
-			utils.Green.Println("当前为最新版本 [" + version + "]！")
-		}
-		os.Exit(0)
-	}
 }
 
 func main() {
-	utils.LogInfo("# Lyxot/CloudflareSpeedTestDNS %s", version)
+	utils.LogInfo("# Lyxot/CloudflareSpeedTestDNS %s-%s", version, gitCommit)
 	if enableCron {
 		cron() // 定时任务
 	} else {
@@ -269,21 +281,28 @@ func endPrint() {
 }
 
 // 检查更新
-func checkUpdate() {
+func checkUpdate() (string, error) {
 	timeout := 10 * time.Second
 	client := http.Client{Timeout: timeout}
-	res, err := client.Get("https://api.xiu2.xyz/ver/cloudflarespeedtest.txt")
+	res, err := client.Get("https://api.github.com/repos/Lyxot/CloudflareSpeedTestDNS/releases/latest")
 	if err != nil {
-		return
+		return "", err
 	}
 	// 读取资源数据 body: []byte
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return
+		return "", err
 	}
 	// 关闭资源流
 	defer res.Body.Close()
-	if string(body) != version {
-		versionNew = string(body)
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", err
 	}
+
+	if tagName, ok := result["tag_name"].(string); ok {
+		return tagName, nil
+	}
+	return "", fmt.Errorf("can't get tag_name from github api")
 }
