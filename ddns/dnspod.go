@@ -1,4 +1,3 @@
-
 package ddns
 
 import (
@@ -55,12 +54,12 @@ func newDNSPodClient() (*dnspod.Client, error) {
 // SyncDNSPodRecords 同步DNSPod DNS记录
 func SyncDNSPodRecords(ipv4Results, ipv6Results []string) error {
 	if utils.Debug {
-		utils.Yellow.Printf("[调试] 开始同步DNSPod DNS记录\n")
+		utils.LogDebug("开始同步DNSPod DNS记录")
 		if len(ipv4Results) > 0 {
-			utils.Yellow.Printf("[调试] IPv4结果: %v\n", ipv4Results)
+			utils.LogDebug("IPv4结果: %v", ipv4Results)
 		}
 		if len(ipv6Results) > 0 {
-			utils.Yellow.Printf("[调试] IPv6结果: %v\n", ipv6Results)
+			utils.LogDebug("IPv6结果: %v", ipv6Results)
 		}
 	}
 	if DNSPodConfig.SecretID == "" || DNSPodConfig.SecretKey == "" || DNSPodConfig.Domain == "" || DNSPodConfig.Subdomain == "" {
@@ -130,7 +129,7 @@ func syncDNSPodRecords(client *dnspod.Client, rr, dnsType string, desiredValues 
 		newVal := remainingNeeded[i]
 		if rec.Value != newVal {
 			if utils.Debug {
-				utils.Yellow.Printf("[调试] 更新DNSPod %s 记录: %s -> %s (ID: %d)\n", dnsType, rec.Value, newVal, rec.ID)
+				utils.LogDebug("更新DNSPod %s 记录: %s -> %s (ID: %d)", dnsType, rec.Value, newVal, rec.ID)
 			}
 			if err := updateDNSPodRecord(client, rec.ID, rr, dnsType, newVal, uint64(DNSPodConfig.TTL)); err != nil {
 				return err
@@ -141,7 +140,7 @@ func syncDNSPodRecords(client *dnspod.Client, rr, dnsType string, desiredValues 
 	// 4) 若仍有剩余需要添加的值，则执行add
 	for _, v := range remainingNeeded[updates:] {
 		if utils.Debug {
-			utils.Yellow.Printf("[调试] 添加DNSPod %s 记录: %s\n", dnsType, v)
+			utils.LogDebug("添加DNSPod %s 记录: %s", dnsType, v)
 		}
 		if err := addDNSPodRecord(client, rr, dnsType, v, uint64(DNSPodConfig.TTL)); err != nil {
 			return err
@@ -151,7 +150,7 @@ func syncDNSPodRecords(client *dnspod.Client, rr, dnsType string, desiredValues 
 	// 5) 若仍有多余记录（未用于更新），删除之
 	for _, rec := range changeableRecords[updates:] {
 		if utils.Debug {
-			utils.Yellow.Printf("[调试] 删除DNSPod %s 记录: %s (ID: %d)\n", dnsType, rec.Value, rec.ID)
+			utils.LogDebug("删除DNSPod %s 记录: %s (ID: %d)", dnsType, rec.Value, rec.ID)
 		}
 		if err := deleteDNSPodRecord(client, rec.ID); err != nil {
 			return err

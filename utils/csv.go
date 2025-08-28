@@ -2,8 +2,6 @@ package utils
 
 import (
 	"encoding/csv"
-	"fmt"
-	"log"
 	"net"
 	"os"
 	"strconv"
@@ -83,7 +81,7 @@ func ExportCsv(data []CloudflareIPData) {
 	}
 	fp, err := os.Create(Output)
 	if err != nil {
-		log.Fatalf("创建文件[%s]失败：%v", Output, err)
+		LogError("创建文件[%s]失败：%v", Output, err)
 		return
 	}
 	defer fp.Close()
@@ -224,7 +222,7 @@ type IPData struct {
 	LossRate float32 // 丢包率
 	Delay    int64   // 延迟（毫秒）
 	Speed    float64 // 下载速度（MB/s）
-	Colo	 string  // 地区码
+	Colo     string  // 地区码
 }
 
 func (s DownloadSpeedSet) Print() {
@@ -232,27 +230,27 @@ func (s DownloadSpeedSet) Print() {
 		return
 	}
 	if len(s) <= 0 { // IP数组长度(IP数量) 大于 0 时继续
-		fmt.Println("\n[信息] 完整测速结果 IP 数量为 0，跳过输出结果。")
+		LogInfo("完整测速结果 IP 数量为 0，跳过输出结果。")
 		return
 	}
 	dateString := convertToString(s) // 转为多维数组 [][]String
 	if len(dateString) < PrintNum {  // 如果IP数组长度(IP数量) 小于  打印次数，则次数改为IP数量
 		PrintNum = len(dateString)
 	}
-	headFormat := "%-16s%-5s%-5s%-5s%-6s%-12s%-5s\n"
-	dataFormat := "%-18s%-8s%-8s%-8s%-10s%-16s%-8s\n"
+	headFormat := "%-16s%-5s%-5s%-5s%-6s%-12s%-5s"
+	dataFormat := "%-18s%-8s%-8s%-8s%-10s%-16s%-8s"
 	for i := 0; i < PrintNum; i++ { // 如果要输出的 IP 中包含 IPv6，那么就需要调整一下间隔
 		if len(dateString[i][0]) > 15 {
-			headFormat = "%-40s%-5s%-5s%-5s%-6s%-12s%-5s\n"
-			dataFormat = "%-42s%-8s%-8s%-8s%-10s%-16s%-8s\n"
+			headFormat = "%-40s%-5s%-5s%-5s%-6s%-12s%-5s"
+			dataFormat = "%-42s%-8s%-8s%-8s%-10s%-16s%-8s"
 			break
 		}
 	}
-	Cyan.Printf(headFormat, "IP 地址", "已发送", "已接收", "丢包率", "平均延迟", "下载速度(MB/s)", "地区码")
+	LogInfo(headFormat, "IP 地址", "已发送", "已接收", "丢包率", "平均延迟", "下载速度(MB/s)", "地区码")
 	for i := 0; i < PrintNum; i++ {
-		fmt.Printf(dataFormat, dateString[i][0], dateString[i][1], dateString[i][2], dateString[i][3], dateString[i][4], dateString[i][5], dateString[i][6])
+		LogInfo(dataFormat, dateString[i][0], dateString[i][1], dateString[i][2], dateString[i][3], dateString[i][4], dateString[i][5], dateString[i][6])
 	}
 	if !noOutput() {
-		fmt.Printf("\n完整测速结果已写入 %v 文件，可使用记事本/表格软件查看。\n", Output)
+		LogInfo("完整测速结果已写入 %v 文件，可使用记事本/表格软件查看。", Output)
 	}
 }

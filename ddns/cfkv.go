@@ -37,7 +37,7 @@ func newCloudflareKVClient() (*cloudflare.API, error) {
 // SyncCloudflareKV 同步测速结果到Cloudflare KV
 func SyncCloudflareKV(ipv4Data, ipv6Data []utils.IPData) error {
 	if utils.Debug {
-		utils.Yellow.Printf("[调试] 开始同步数据到Cloudflare KV\n")
+		utils.LogDebug("开始同步数据到Cloudflare KV")
 	}
 
 	if CloudflareKVConfig.APIToken == "" || CloudflareKVConfig.AccountID == "" || CloudflareKVConfig.NamespaceID == "" {
@@ -70,7 +70,7 @@ func SyncCloudflareKV(ipv4Data, ipv6Data []utils.IPData) error {
 		}
 
 		if utils.Debug {
-			utils.Yellow.Printf("[调试] IPv4数据已同步到Cloudflare KV\n")
+			utils.LogDebug("IPv4数据已同步到Cloudflare KV")
 		}
 	}
 
@@ -90,7 +90,7 @@ func SyncCloudflareKV(ipv4Data, ipv6Data []utils.IPData) error {
 		}
 
 		if utils.Debug {
-			utils.Yellow.Printf("[调试] IPv6数据已同步到Cloudflare KV\n")
+			utils.LogDebug("IPv6数据已同步到Cloudflare KV")
 		}
 	}
 

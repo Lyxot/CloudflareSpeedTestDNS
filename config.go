@@ -40,6 +40,7 @@ type Config struct {
 	IPv6File string `toml:"ipv6_file"` // IPv6段数据文件
 	IPText   string `toml:"ip_text"`   // 指定IP段数据
 	Output   string `toml:"output"`    // 输出结果文件
+	LogFile  string `toml:"log_file"`  // 日志文件
 
 	// 其他选项
 	TestAll bool `toml:"test_all"` // 测速全部IP
@@ -150,6 +151,7 @@ func CreateDefaultConfig() *Config {
 		IPv6File:     "",
 		IPText:       "",
 		Output:       "result.csv",
+		LogFile:      "",
 		TestAll:      false,
 		AliDNS: AliDNSConfig{
 			Enable: false,
@@ -287,6 +289,10 @@ func ApplyConfig(config *Config) {
 
 	if config.Output != "" {
 		utils.Output = config.Output
+	}
+
+	if config.LogFile != "" {
+		utils.LogFile = config.LogFile
 	}
 
 	// 设置延迟相关参数

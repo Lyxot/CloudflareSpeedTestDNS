@@ -10,12 +10,12 @@ import (
 
 // CloudflareConfig Cloudflare DNS配置
 type cloudflareConfig struct {
-	APIToken  string `toml:"api_token"`  // Cloudflare API Token
-	ZoneID    string `toml:"zone_id"`    // Cloudflare Zone ID
-	Domain    string `toml:"domain"`     // 域名
+	APIToken  string `toml:"api_token"` // Cloudflare API Token
+	ZoneID    string `toml:"zone_id"`   // Cloudflare Zone ID
+	Domain    string `toml:"domain"`    // 域名
 	Subdomain string `toml:"subdomain"` // 子域名
-	Proxied   bool   `toml:"proxied"`    // 是否开启Cloudflare代理
-	TTL       int    `toml:"ttl"`        // TTL，1为自动
+	Proxied   bool   `toml:"proxied"`   // 是否开启Cloudflare代理
+	TTL       int    `toml:"ttl"`       // TTL，1为自动
 }
 
 // 默认配置
@@ -39,16 +39,16 @@ func newCloudflareClient() (*cloudflare.API, error) {
 // SyncCloudflareRecords 同步Cloudflare DNS记录
 func SyncCloudflareRecords(ipv4Results, ipv6Results []string) error {
 	if utils.Debug {
-		utils.Yellow.Printf("[调试] 开始同步Cloudflare DNS记录\n")
+		utils.LogDebug("开始同步Cloudflare DNS记录")
 		if len(ipv4Results) > 0 {
-			utils.Yellow.Printf("[调试] IPv4结果: %v\n", ipv4Results)
+			utils.LogDebug("IPv4结果: %v", ipv4Results)
 		}
 		if len(ipv6Results) > 0 {
-			utils.Yellow.Printf("[调试] IPv6结果: %v\n", ipv6Results)
+			utils.LogDebug("IPv6结果: %v", ipv6Results)
 		}
 	}
 	if CloudflareConfig.APIToken == "" || CloudflareConfig.ZoneID == "" || CloudflareConfig.Domain == "" {
-		return fmt.Errorf("Cloudflare DNS配置不完整")
+		return fmt.Errorf("cloudflare DNS配置不完整")
 	}
 
 	api, err := newCloudflareClient()
@@ -116,7 +116,7 @@ func syncCloudflareRecords(ctx context.Context, api *cloudflare.API, recordType 
 		newVal := remainingNeeded[i]
 		if rec.Content != newVal {
 			if utils.Debug {
-				utils.Yellow.Printf("[调试] 更新Cloudflare %s记录: %s -> %s (ID: %s)\n", recordType, rec.Content, newVal, rec.ID)
+				utils.LogDebug("更新Cloudflare %s记录: %s -> %s (ID: %s)", recordType, rec.Content, newVal, rec.ID)
 			}
 			if err := updateCloudflareRecord(ctx, api, recordType, newVal, rec.ID); err != nil {
 				return err
@@ -127,7 +127,7 @@ func syncCloudflareRecords(ctx context.Context, api *cloudflare.API, recordType 
 	// 4) 若仍有剩余需要添加的值，则执行add
 	for _, v := range remainingNeeded[updates:] {
 		if utils.Debug {
-			utils.Yellow.Printf("[调试] 添加Cloudflare %s记录: %s\n", recordType, v)
+			utils.LogDebug("添加Cloudflare %s记录: %s", recordType, v)
 		}
 		if err := addCloudflareRecord(ctx, api, recordType, v); err != nil {
 			return err
@@ -137,7 +137,7 @@ func syncCloudflareRecords(ctx context.Context, api *cloudflare.API, recordType 
 	// 5) 若仍有多余记录（未用于更新），删除之
 	for _, rec := range changeableRecords[updates:] {
 		if utils.Debug {
-			utils.Yellow.Printf("[调试] 删除Cloudflare %s记录: %s (ID: %s)\n", recordType, rec.Content, rec.ID)
+			utils.LogDebug("删除Cloudflare %s记录: %s (ID: %s)", recordType, rec.Content, rec.ID)
 		}
 		if err := deleteCloudflareRecord(ctx, api, rec.ID); err != nil {
 			return err
@@ -210,4 +210,3 @@ func updateCloudflareRecord(ctx context.Context, api *cloudflare.API, recordType
 func deleteCloudflareRecord(ctx context.Context, api *cloudflare.API, id string) error {
 	return api.DeleteDNSRecord(ctx, cloudflare.ZoneIdentifier(CloudflareConfig.ZoneID), id)
 }
-

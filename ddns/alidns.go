@@ -47,12 +47,12 @@ func newAliDNSClient() (*alidns.Client, error) {
 // SyncDNSRecords 同步阿里云DNS记录
 func SyncDNSRecords(ipv4Results, ipv6Results []string) error {
 	if utils.Debug {
-		utils.Yellow.Printf("[调试] 开始同步阿里云DNS记录\n")
+		utils.LogDebug("开始同步阿里云DNS记录")
 		if len(ipv4Results) > 0 {
-			utils.Yellow.Printf("[调试] IPv4结果: %v\n", ipv4Results)
+			utils.LogDebug("IPv4结果: %v", ipv4Results)
 		}
 		if len(ipv6Results) > 0 {
-			utils.Yellow.Printf("[调试] IPv6结果: %v\n", ipv6Results)
+			utils.LogDebug("IPv6结果: %v", ipv6Results)
 		}
 	}
 	if AliDNSConfig.AccessKeyID == "" || AliDNSConfig.AccessKeySecret == "" || AliDNSConfig.Domain == "" || AliDNSConfig.Subdomain == "" {
@@ -122,7 +122,7 @@ func syncAliRecords(client *alidns.Client, rr, dnsType string, desiredValues []s
 		newVal := remainingNeeded[i]
 		if rec.Value != newVal {
 			if utils.Debug {
-				utils.Yellow.Printf("[调试] 更新阿里云 %s 记录: %s -> %s (ID: %s)\n", dnsType, rec.Value, newVal, rec.RecordID)
+				utils.LogDebug("更新阿里云 %s 记录: %s -> %s (ID: %s)", dnsType, rec.Value, newVal, rec.RecordID)
 			}
 			if err := updateAliRecord(client, rr, dnsType, newVal, rec.RecordID, AliDNSConfig.TTL); err != nil {
 				return err
@@ -133,7 +133,7 @@ func syncAliRecords(client *alidns.Client, rr, dnsType string, desiredValues []s
 	// 4) 若仍有剩余需要添加的值，则执行add
 	for _, v := range remainingNeeded[updates:] {
 		if utils.Debug {
-			utils.Yellow.Printf("[调试] 添加阿里云 %s 记录: %s\n", dnsType, v)
+			utils.LogDebug("添加阿里云 %s 记录: %s", dnsType, v)
 		}
 		if err := addAliRecord(client, rr, dnsType, v, AliDNSConfig.TTL); err != nil {
 			return err
@@ -143,7 +143,7 @@ func syncAliRecords(client *alidns.Client, rr, dnsType string, desiredValues []s
 	// 5) 若仍有多余记录（未用于更新），删除之
 	for _, rec := range changeableRecords[updates:] {
 		if utils.Debug {
-			utils.Yellow.Printf("[调试] 删除阿里云 %s 记录: %s (ID: %s)\n", dnsType, rec.Value, rec.RecordID)
+			utils.LogDebug("删除阿里云 %s 记录: %s (ID: %s)", dnsType, rec.Value, rec.RecordID)
 		}
 		if err := deleteAliRecord(client, rec.RecordID); err != nil {
 			return err

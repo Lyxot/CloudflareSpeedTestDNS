@@ -22,11 +22,11 @@ var (
 	enableCFKV          bool
 	enableDNSPod        bool
 
-	enableCron          bool
-	latencyThreshold    time.Duration
-	lossRateThreshold   float32
-	checkInterval       time.Duration
-	testInterval        time.Duration
+	enableCron        bool
+	latencyThreshold  time.Duration
+	lossRateThreshold float32
+	checkInterval     time.Duration
+	testInterval      time.Duration
 )
 
 func init() {
@@ -59,7 +59,7 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 		// 如果指定了配置文件，则加载它
 		config, err = LoadConfig(configFile)
 		if err != nil {
-			fmt.Printf("加载配置文件失败: %v\n", err)
+			utils.LogError("加载配置文件失败: %v", err)
 			os.Exit(1)
 		}
 	} else {
@@ -72,9 +72,15 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 	}
 
 	ApplyConfig(config)
-	
+
+	// 初始化日志文件
+	if err := utils.InitLogFile(); err != nil {
+		utils.LogError("初始化日志文件失败: %v", err)
+		os.Exit(1)
+	}
+
 	if task.MinSpeed > 0 && config.MaxDelay == 9999 {
-		utils.Yellow.Println("[提示] 配置了 min_speed 参数时，建议搭配 max_delay 参数，以避免因凑不够 test_count 数量而一直测速...")
+		utils.LogWarn("配置了 min_speed 参数时，建议搭配 max_delay 参数，以避免因凑不够 test_count 数量而一直测速...")
 	}
 
 	if printVersion {
@@ -91,7 +97,7 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 }
 
 func main() {
-	fmt.Printf("# Lyxot/CloudflareSpeedTestDNS %s \n\n", version)
+	utils.LogInfo("# Lyxot/CloudflareSpeedTestDNS %s", version)
 	if enableCron {
 		cron() // 定时任务
 	} else {
@@ -101,7 +107,7 @@ func main() {
 }
 
 func cron() {
-	fmt.Println("\n定时任务已启用")
+	utils.LogInfo("定时任务已启用")
 	ipData := speedTest()
 
 	// 设置定时器
@@ -111,11 +117,11 @@ func cron() {
 	for {
 		select {
 		case <-testTicker.C:
-			fmt.Println("\n强制刷新任务开始...")
+			utils.LogInfo("强制刷新任务开始...")
 			ipData = speedTest()
 			checkTicker.Reset(checkInterval)
 		case <-checkTicker.C:
-			fmt.Println("\n开始检查延迟和丢包率...")
+			utils.LogInfo("开始检查延迟和丢包率...")
 			// 拼接 IP 段数据
 			ipText := ""
 			for _, ip := range ipData {
@@ -130,18 +136,18 @@ func cron() {
 			utils.InputMaxDelay = latencyThreshold
 			utils.InputMaxLossRate = lossRateThreshold
 			pingData := task.NewPing().Run().FilterDelay().FilterLossRate()
-			
+
 			// 恢复原始设置
 			task.IPText = origIPText
 			utils.InputMaxDelay = origMaxDelay
 			utils.InputMaxLossRate = origMaxLossRate
 
 			if len(pingData) != len(ipData) {
-				fmt.Println("\n延迟或丢包率超过阈值，开始新一轮测速...")
+				utils.LogInfo("延迟或丢包率超过阈值，开始新一轮测速...")
 				ipData = speedTest()
 				testTicker.Reset(testInterval)
 			} else {
-				fmt.Println("\n延迟和丢包率在阈值范围内")
+				utils.LogInfo("延迟和丢包率在阈值范围内")
 			}
 		}
 	}
@@ -156,19 +162,19 @@ func speedTest() []string {
 		originOutput := utils.Output
 
 		// 测试IPv4
-		fmt.Println("\n[IPv4] 开始测试IPv4...")
+		utils.LogInfo("[IPv4] 开始测试IPv4...")
 		task.IPv6File = ""
 		utils.Output = utils.GetFilenameWithSuffix(originOutput, "ipv4")
-		ipv4SpeedData := singleSpeedTest() // 开始延迟测速 + 过滤延迟/丢包
-		ipData = append(ipData, ddnsSync(ipv4SpeedData)...)      // 同步到DNS
+		ipv4SpeedData := singleSpeedTest()                  // 开始延迟测速 + 过滤延迟/丢包
+		ipData = append(ipData, ddnsSync(ipv4SpeedData)...) // 同步到DNS
 
 		// 测试IPv6
-		fmt.Println("\n[IPv6] 开始测试IPv6...")
+		utils.LogInfo("[IPv6] 开始测试IPv6...")
 		task.IPv4File = ""
 		task.IPv6File = origIPv6File
 		utils.Output = utils.GetFilenameWithSuffix(originOutput, "ipv6")
-		ipv6SpeedData := singleSpeedTest() // 开始延迟测速 + 过滤延迟/丢包
-		ipData = append(ipData, ddnsSync(ipv6SpeedData)...)      // 同步到DNS
+		ipv6SpeedData := singleSpeedTest()                  // 开始延迟测速 + 过滤延迟/丢包
+		ipData = append(ipData, ddnsSync(ipv6SpeedData)...) // 同步到DNS
 
 		// 恢复原始文件设置
 		task.IPv4File = origIPv4File
@@ -210,41 +216,41 @@ func ddnsSync(speedData utils.DownloadSpeedSet) []string {
 
 	// 如果启用了阿里云DNS，则同步结果
 	if enableAliDNS {
-		fmt.Println("\n开始同步结果到阿里云DNS...")
+		utils.LogInfo("开始同步结果到阿里云DNS...")
 		if err := ddns.SyncDNSRecords(ipv4Results, ipv6Results); err != nil {
-			utils.Red.Printf("同步到阿里云DNS失败: %v\n", err)
+			utils.LogError("同步到阿里云DNS失败: %v", err)
 		} else {
-			utils.Green.Println("同步到阿里云DNS成功!")
+			utils.LogInfo("同步到阿里云DNS成功!")
 		}
 	}
 
 	// 如果启用了DNSPod DNS，则同步结果
 	if enableDNSPod {
-		fmt.Println("\n开始同步结果到DNSPod DNS...")
+		utils.LogInfo("开始同步结果到DNSPod DNS...")
 		if err := ddns.SyncDNSPodRecords(ipv4Results, ipv6Results); err != nil {
-			utils.Red.Printf("同步到DNSPod DNS失败: %v\n", err)
+			utils.LogError("同步到DNSPod DNS失败: %v", err)
 		} else {
-			utils.Green.Println("同步到DNSPod DNS成功!")
+			utils.LogInfo("同步到DNSPod DNS成功!")
 		}
 	}
 
 	// 如果启用了Cloudflare DNS，则同步结果
 	if enableCloudflare {
-		fmt.Println("\n开始同步结果到Cloudflare DNS...")
+		utils.LogInfo("开始同步结果到Cloudflare DNS...")
 		if err := ddns.SyncCloudflareRecords(ipv4Results, ipv6Results); err != nil {
-			utils.Red.Printf("同步到Cloudflare DNS失败: %v\n", err)
+			utils.LogError("同步到Cloudflare DNS失败: %v", err)
 		} else {
-			utils.Green.Println("同步到Cloudflare DNS成功!")
+			utils.LogInfo("同步到Cloudflare DNS成功!")
 		}
 	}
 
 	// 如果启用了Cloudflare KV，则同步结果
 	if enableCFKV {
-		fmt.Println("\n开始同步结果到Cloudflare KV...")
+		utils.LogInfo("开始同步结果到Cloudflare KV...")
 		if err := ddns.SyncCloudflareKV(speedData.FilterIPv4(), speedData.FilterIPv6()); err != nil {
-			utils.Red.Printf("同步到Cloudflare KV失败: %v\n", err)
+			utils.LogError("同步到Cloudflare KV失败: %v", err)
 		} else {
-			utils.Green.Println("同步到Cloudflare KV成功!")
+			utils.LogInfo("同步到Cloudflare KV成功!")
 		}
 	}
 
@@ -257,7 +263,7 @@ func endPrint() {
 		return
 	}
 	if runtime.GOOS == "windows" { // 如果是 Windows 系统，则需要按下 回车键 或 Ctrl+C 退出（避免通过双击运行时，测速完毕后直接关闭）
-		fmt.Printf("按下 回车键 或 Ctrl+C 退出。")
+		fmt.Println("按下 回车键 或 Ctrl+C 退出。")
 		fmt.Scanln()
 	}
 }
