@@ -7,8 +7,28 @@ on:
   workflow_dispatch:
 
 jobs:
+  version:
+    name: Get Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.output.outputs.tag }}
+      commit: ${{ steps.output.outputs.commit }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Output
+        id: output
+        run: |
+          echo "tag=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
+          echo "commit=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
   build-release:
     name: Build Release
+    needs: version
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -71,9 +91,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          fetch-tags: true
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -89,18 +106,18 @@ jobs:
           GOMIPS: ${{ matrix.gomips }}
         run: |
           if [ ${{ matrix.goos }} = 'windows' ]; then
-            go build -v -o cfstd.exe -ldflags="-s -w -X main.version=$(git describe --tags --abbrev=0) -X main.gitCommit=$(git rev-parse --short HEAD)"
+            go build -v -o cfstd.exe -ldflags="-s -w -X main.version=${{ needs.version.outputs.version }} -X main.gitCommit=${{ needs.version.outputs.commit }}"
           else
-            go build -v -o cfstd -ldflags="-s -w -X main.version=$(git describe --tags --abbrev=0) -X main.gitCommit=$(git rev-parse --short HEAD)"
+            go build -v -o cfstd -ldflags="-s -w -X main.version=${{ needs.version.outputs.version }} -X main.gitCommit=${{ needs.version.outputs.commit }}"
           fi
 
       - name: Package
         run: |
           mv conf/config.example.toml config.example.toml
           if [ ${{ matrix.goos }} = 'windows' ]; then
-            7z a ${{ matrix.artifact_name }}-$(git describe --tags --abbrev=0).zip cfstd.exe ip.txt ipv6.txt config.example.toml LICENSE
+            7z a ${{ matrix.artifact_name }}-${{ needs.version.outputs.version }}.zip cfstd.exe ip.txt ipv6.txt config.example.toml LICENSE
           else
-            zip ${{ matrix.artifact_name }}-$(git describe --tags --abbrev=0).zip cfstd ip.txt ipv6.txt config.example.toml LICENSE
+            zip ${{ matrix.artifact_name }}-${{ needs.version.outputs.version }}.zip cfstd ip.txt ipv6.txt config.example.toml LICENSE
           fi
 
       - name: Upload artifact
@@ -111,16 +128,13 @@ jobs:
 
   release:
     name: Release
-    needs: build-release
+    needs: [version, build-release]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          fetch-tags: true
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -129,16 +143,57 @@ jobs:
           pattern: cfstd-*
           merge-multiple: true
 
-      - name: Get tag
-        id: get_tag
-        run: echo "tag=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
-
       - name: Update RELEASE_NOTES.md
-        run: sed -i "s/__VERSION__/${{ steps.get_tag.outputs.tag }}/g" RELEASE_NOTES.md
+        run: sed -i "s/__VERSION__/${{ needs.version.outputs.version }}/g" RELEASE_NOTES.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.get_tag.outputs.tag }}
+          tag_name: ${{ needs.version.outputs.version }}
           body_path: RELEASE_NOTES.md
           files: release-assets/*.zip
+
+  docker:
+    name: Build and push Docker image
+    needs: [version, build-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            lyxot/cfstd
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.version.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.version.outputs.version }}
+            type=semver,pattern={{major}},value=${{ needs.version.outputs.version }}
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/386,linux/amd64,linux/arm/v7,linux/arm64/v8,linux/riscv64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ needs.version.outputs.version }}
+            GIT_COMMIT=${{ needs.version.outputs.commit }}

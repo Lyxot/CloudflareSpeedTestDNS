@@ -58,6 +58,37 @@ chmod +x cfstd
 
 </details>
 
+<details>
+<summary><code><strong>🐳 Docker 用户点击查看详细说明</strong></code></summary>
+
+#### Docker
+
+```bash
+# 拉取镜像
+docker pull lyxot/cfstd:latest
+
+# 运行容器
+docker run -it --rm lyxot/cfstd:latest
+```
+
+#### Docker Compose（推荐）
+
+```bash
+mkdir cfstd && cd cfstd
+wget https://raw.githubusercontent.com/Lyxot/CloudflareSpeedTestDNS/master/docker-compose.yml
+
+ # 配置环境变量
+vim docker-compose.yml
+
+# 运行容器
+docker compose up -d
+
+# 后续更新
+docker compose pull
+```
+
+</details>
+
 ### 📊 测速结果示例
 
 测速完成后，程序会显示**延迟最低、速度最快的 IP 地址**。以下是典型输出示例：
