@@ -61,6 +61,7 @@ chmod +x cfstd
 <details>
 <summary><code><strong>🐳 Docker 用户点击查看详细说明</strong></code></summary>
 
+> ⚠️ 测试 IPv6 需要为 Docker 启用 IPv6 或者使用 host 网络模式
 #### Docker
 
 ```bash
@@ -81,7 +82,7 @@ wget https://raw.githubusercontent.com/Lyxot/CloudflareSpeedTestDNS/master/docke
 vim docker-compose.yml
 
 # 运行容器
-docker compose up -d
+docker compose up
 
 # 后续更新
 docker compose pull
