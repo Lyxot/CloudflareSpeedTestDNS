@@ -28,7 +28,7 @@ type DNSPodRecord struct {
 	TTL   uint64
 }
 
-// 默认配置
+// DNSPodConfig 默认配置
 var (
 	DNSPodConfig = dnspodConfig{
 		SecretID:  "",
@@ -73,22 +73,22 @@ func SyncDNSPodRecords(ipv4Results, ipv6Results []string) error {
 
 	// 同步A记录
 	if len(ipv4Results) > 0 {
-		v4Records, err := getDNSPodRecords(client, DNSPodConfig.Domain, DNSPodConfig.Subdomain, "A")
+		v4Records, err := getDNSPodRecords(client, "A")
 		if err != nil {
 			return fmt.Errorf("获取DNSPod A记录失败: %v", err)
 		}
-		if err := syncDNSPodRecords(client, DNSPodConfig.Subdomain, "A", ipv4Results, v4Records); err != nil {
+		if err := syncDNSPodRecords(client, "A", ipv4Results, v4Records); err != nil {
 			return fmt.Errorf("同步DNSPod A记录失败: %v", err)
 		}
 	}
 
 	// 同步AAAA记录
 	if len(ipv6Results) > 0 {
-		v6Records, err := getDNSPodRecords(client, DNSPodConfig.Domain, DNSPodConfig.Subdomain, "AAAA")
+		v6Records, err := getDNSPodRecords(client, "AAAA")
 		if err != nil {
 			return fmt.Errorf("获取DNSPod AAAA记录失败: %v", err)
 		}
-		if err := syncDNSPodRecords(client, DNSPodConfig.Subdomain, "AAAA", ipv6Results, v6Records); err != nil {
+		if err := syncDNSPodRecords(client, "AAAA", ipv6Results, v6Records); err != nil {
 			return fmt.Errorf("同步DNSPod AAAA记录失败: %v", err)
 		}
 	}
@@ -97,14 +97,14 @@ func SyncDNSPodRecords(ipv4Results, ipv6Results []string) error {
 }
 
 // syncDNSPodRecords 同步DNSPod DNS记录
-func syncDNSPodRecords(client *dnspod.Client, rr, dnsType string, desiredValues []string, existingRecords []DNSPodRecord) error {
+func syncDNSPodRecords(client *dnspod.Client, dnsType string, desiredValues []string, existingRecords []DNSPodRecord) error {
 	// 1) 跳过已存在且值一致的记录
 	desiredCounter := make(map[string]int)
 	for _, v := range desiredValues {
 		desiredCounter[v]++
 	}
 
-	changeableRecords := []DNSPodRecord{}
+	var changeableRecords []DNSPodRecord
 
 	for _, rec := range existingRecords {
 		if count, exists := desiredCounter[rec.Value]; exists && count > 0 {
@@ -115,7 +115,7 @@ func syncDNSPodRecords(client *dnspod.Client, rr, dnsType string, desiredValues 
 	}
 
 	// 2) 展开剩余需要的目标值
-	remainingNeeded := []string{}
+	var remainingNeeded []string
 	for v, c := range desiredCounter {
 		for i := 0; i < c; i++ {
 			remainingNeeded = append(remainingNeeded, v)
@@ -131,7 +131,7 @@ func syncDNSPodRecords(client *dnspod.Client, rr, dnsType string, desiredValues 
 			if utils.Debug {
 				utils.LogDebug("更新DNSPod %s 记录: %s -> %s (ID: %d)", dnsType, rec.Value, newVal, rec.ID)
 			}
-			if err := updateDNSPodRecord(client, rec.ID, rr, dnsType, newVal, uint64(DNSPodConfig.TTL)); err != nil {
+			if err := updateDNSPodRecord(client, rec.ID, dnsType, newVal); err != nil {
 				return err
 			}
 		}
@@ -142,7 +142,7 @@ func syncDNSPodRecords(client *dnspod.Client, rr, dnsType string, desiredValues 
 		if utils.Debug {
 			utils.LogDebug("添加DNSPod %s 记录: %s", dnsType, v)
 		}
-		if err := addDNSPodRecord(client, rr, dnsType, v, uint64(DNSPodConfig.TTL)); err != nil {
+		if err := addDNSPodRecord(client, dnsType, v); err != nil {
 			return err
 		}
 	}
@@ -161,10 +161,10 @@ func syncDNSPodRecords(client *dnspod.Client, rr, dnsType string, desiredValues 
 }
 
 // getDNSPodRecords 获取指定类型的DNSPod DNS记录
-func getDNSPodRecords(client *dnspod.Client, domain, rr, recordType string) ([]DNSPodRecord, error) {
+func getDNSPodRecords(client *dnspod.Client, recordType string) ([]DNSPodRecord, error) {
 	request := dnspod.NewDescribeRecordListRequest()
-	request.Domain = common.StringPtr(domain)
-	request.Subdomain = common.StringPtr(rr)
+	request.Domain = common.StringPtr(DNSPodConfig.Domain)
+	request.Subdomain = common.StringPtr(DNSPodConfig.Subdomain)
 	request.RecordType = common.StringPtr(recordType)
 
 	response, err := client.DescribeRecordList(request)
@@ -177,7 +177,7 @@ func getDNSPodRecords(client *dnspod.Client, domain, rr, recordType string) ([]D
 		return nil, fmt.Errorf("API error: %v", err)
 	}
 
-	records := []DNSPodRecord{}
+	var records []DNSPodRecord
 	for _, r := range response.Response.RecordList {
 		records = append(records, DNSPodRecord{
 			ID:    *r.RecordId,
@@ -192,14 +192,14 @@ func getDNSPodRecords(client *dnspod.Client, domain, rr, recordType string) ([]D
 }
 
 // addDNSPodRecord 添加DNSPod DNS记录
-func addDNSPodRecord(client *dnspod.Client, rr, recordType, value string, ttl uint64) error {
+func addDNSPodRecord(client *dnspod.Client, recordType, value string) error {
 	request := dnspod.NewCreateRecordRequest()
 	request.Domain = common.StringPtr(DNSPodConfig.Domain)
-	request.SubDomain = common.StringPtr(rr)
+	request.SubDomain = common.StringPtr(DNSPodConfig.Subdomain)
 	request.RecordType = common.StringPtr(recordType)
 	request.Value = common.StringPtr(value)
 	request.RecordLine = common.StringPtr("默认")
-	request.TTL = common.Uint64Ptr(ttl)
+	request.TTL = common.Uint64Ptr(uint64(DNSPodConfig.TTL))
 
 	_, err := client.CreateRecord(request)
 	if _, ok := err.(*errors.TencentCloudSDKError); ok {
@@ -209,15 +209,15 @@ func addDNSPodRecord(client *dnspod.Client, rr, recordType, value string, ttl ui
 }
 
 // updateDNSPodRecord 更新DNSPod DNS记录
-func updateDNSPodRecord(client *dnspod.Client, recordID uint64, rr, recordType, value string, ttl uint64) error {
+func updateDNSPodRecord(client *dnspod.Client, recordID uint64, recordType, value string) error {
 	request := dnspod.NewModifyRecordRequest()
 	request.Domain = common.StringPtr(DNSPodConfig.Domain)
 	request.RecordId = common.Uint64Ptr(recordID)
-	request.SubDomain = common.StringPtr(rr)
+	request.SubDomain = common.StringPtr(DNSPodConfig.Subdomain)
 	request.RecordType = common.StringPtr(recordType)
 	request.Value = common.StringPtr(value)
 	request.RecordLine = common.StringPtr("默认")
-	request.TTL = common.Uint64Ptr(ttl)
+	request.TTL = common.Uint64Ptr(uint64(DNSPodConfig.TTL))
 
 	_, err := client.ModifyRecord(request)
 	if _, ok := err.(*errors.TencentCloudSDKError); ok {

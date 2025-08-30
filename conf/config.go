@@ -12,15 +12,15 @@ import (
 )
 
 var (
-	EnableAliDNS     bool
-	EnableCloudflare bool
-	EnableCFKV       bool
-	EnableDNSPod     bool
-	EnableCron       bool
-	LatencyThreshold time.Duration
+	EnableAliDNS      bool
+	EnableCloudflare  bool
+	EnableCFKV        bool
+	EnableDNSPod      bool
+	EnableCron        bool
+	LatencyThreshold  time.Duration
 	LossRateThreshold float32
-	CheckInterval    time.Duration
-	TestInterval     time.Duration
+	CheckInterval     time.Duration
+	TestInterval      time.Duration
 )
 
 // Config 配置文件结构体
@@ -39,11 +39,11 @@ type Config struct {
 	Cfcolo      string `toml:"cfcolo"`       // 匹配指定地区
 
 	// 下载测速相关
-	TestCount    int     `toml:"test_count"`       // 下载测速数量
-	DownloadTime int     `toml:"download_time"`    // 下载测速时间
-	Url          string  `toml:"url"`              // 指定测速地址
-	MinSpeed     float64 `toml:"min_speed"`        // 下载速度下限
-	DisableDownload      bool    `toml:"disable_download"` // 禁用下载测速
+	TestCount       int     `toml:"test_count"`       // 下载测速数量
+	DownloadTime    int     `toml:"download_time"`    // 下载测速时间
+	Url             string  `toml:"url"`              // 指定测速地址
+	MinSpeed        float64 `toml:"min_speed"`        // 下载速度下限
+	DisableDownload bool    `toml:"disable_download"` // 禁用下载测速
 
 	// 输入输出相关
 	PrintNum int    `toml:"print_num"` // 显示结果数量
@@ -56,7 +56,7 @@ type Config struct {
 
 	// 其他选项
 	TestAll bool `toml:"test_all"` // 测速全部IP
-	Debug   bool `toml:"debug"`   // 调试输出模式
+	Debug   bool `toml:"debug"`    // 调试输出模式
 
 	// 阿里云DNS相关
 	Alidns AliDNSConfig `toml:"alidns"` // 阿里云DNS配置
@@ -144,28 +144,28 @@ func LoadConfig(path string) (*Config, error) {
 // CreateDefaultConfig 创建默认配置
 func CreateDefaultConfig() *Config {
 	return &Config{
-		Routines:     200,
-		PingTimes:    4,
-		TcpPort:      443,
-		MaxDelay:     9999,
-		MinDelay:     0,
-		MaxLossRate:  1.0,
-		Httping:      false,
-		HttpingCode:  0,
-		Cfcolo:       "",
-		TestCount:    10,
-		DownloadTime: 10,
-		Url:          "https://cf.xiu2.xyz/url",
-		MinSpeed:     0.0,
-		DisableDownload:      false,
-		PrintNum:     10,
-		IpFile:       "ip.txt",
-		Ipv4File:     "",
-		Ipv6File:     "",
-		IpText:       "",
-		Output:       "result.csv",
-		LogFile:      "",
-		TestAll:      false,
+		Routines:        200,
+		PingTimes:       4,
+		TcpPort:         443,
+		MaxDelay:        9999,
+		MinDelay:        0,
+		MaxLossRate:     1.0,
+		Httping:         false,
+		HttpingCode:     0,
+		Cfcolo:          "",
+		TestCount:       10,
+		DownloadTime:    10,
+		Url:             "https://cf.xiu2.xyz/url",
+		MinSpeed:        0.0,
+		DisableDownload: false,
+		PrintNum:        10,
+		IpFile:          "ip.txt",
+		Ipv4File:        "",
+		Ipv6File:        "",
+		IpText:          "",
+		Output:          "result.csv",
+		LogFile:         "",
+		TestAll:         false,
 		Alidns: AliDNSConfig{
 			Enable: false,
 			TTL:    600,
@@ -216,7 +216,7 @@ func ApplyConfig(config *Config) {
 
 	if config.Cfcolo != "" {
 		task.HttpingCFColo = config.Cfcolo
-		task.HttpingCFColomap = task.MapColoMap()
+		task.HttpingCFColoMap = task.MapColoMap()
 	}
 
 	// 设置下载测速相关参数

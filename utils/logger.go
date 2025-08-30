@@ -11,36 +11,36 @@ import (
 
 // 日志级别常量
 const (
-	LOG_DEBUG = "DEBUG"
-	LOG_INFO  = "INFO"
-	LOG_WARN  = "WARN"
-	LOG_ERROR = "ERROR"
-	LOG_FATAL = "FATAL"
+	LogLevelDebug = "DEBUG"
+	LogLevelInfo  = "INFO"
+	LogLevelWarn  = "WARN"
+	LogLevelError = "ERROR"
+	LogLevelFatal = "FATAL"
 )
 
 // LogInfo 输出信息日志
 func LogInfo(format string, args ...interface{}) {
-	logMessage(LOG_INFO, format, args...)
+	logMessage(LogLevelInfo, format, args...)
 }
 
 // LogError 输出错误日志
 func LogError(format string, args ...interface{}) {
-	logMessage(LOG_ERROR, format, args...)
+	logMessage(LogLevelError, format, args...)
 }
 
 // LogWarn 输出警告日志
 func LogWarn(format string, args ...interface{}) {
-	logMessage(LOG_WARN, format, args...)
+	logMessage(LogLevelWarn, format, args...)
 }
 
 // LogDebug 输出调试日志
 func LogDebug(format string, args ...interface{}) {
-	logMessage(LOG_DEBUG, format, args...)
+	logMessage(LogLevelDebug, format, args...)
 }
 
 // LogFatal 输出致命错误日志并退出
 func LogFatal(format string, args ...interface{}) {
-	logMessage(LOG_FATAL, format, args...)
+	logMessage(LogLevelFatal, format, args...)
 	os.Exit(1)
 }
 
@@ -73,8 +73,11 @@ func writeToLogFile(content string) {
 	_, err := logFile.WriteString(content)
 	if err != nil {
 		// 如果写入失败，尝试重新打开文件
-		logFile.Close()
-		InitLogFile()
+		err = logFile.Close()
+		err = InitLogFile()
+		if err != nil {
+			return
+		}
 	}
 }
 
@@ -87,17 +90,17 @@ func logMessage(level string, format string, args ...interface{}) {
 	var levelColor *color.Color
 	output := os.Stdout
 	switch level {
-	case LOG_DEBUG:
+	case LogLevelDebug:
 		levelColor = Yellow
-	case LOG_INFO:
+	case LogLevelInfo:
 		levelColor = White
-	case LOG_WARN:
+	case LogLevelWarn:
 		levelColor = Red
 		output = os.Stderr
-	case LOG_ERROR:
+	case LogLevelError:
 		levelColor = Red
 		output = os.Stderr
-	case LOG_FATAL:
+	case LogLevelFatal:
 		levelColor = Red
 		output = os.Stderr
 	default:
@@ -108,9 +111,14 @@ func logMessage(level string, format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
 
 	// 输出到屏幕
-	Green.Fprintf(output, "%s ", timestamp)
-	levelColor.Fprintf(output, "%s", level)
-	fmt.Fprintf(output, " %s\n", message)
+	_, err := Green.Fprintf(output, "%s ", timestamp)
+	_, err = levelColor.Fprintf(output, "%s", level)
+	_, err = fmt.Fprintf(output, " %s\n", message)
+
+	if err != nil {
+		// 如果输出失败，直接返回
+		return
+	}
 
 	// 如果配置了日志文件，同时输出到文件
 	if LogFile != "" {

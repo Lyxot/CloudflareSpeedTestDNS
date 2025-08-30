@@ -57,11 +57,11 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
 		fmt.Println("检查版本更新中...")
 		versionNew, err := checkUpdate()
 		if err != nil {
-			utils.Red.Printf("检查版本更新失败: %v", err)
+			_, _ = utils.Red.Printf("检查版本更新失败: %v", err)
 		} else if versionNew != "" && versionNew != version {
-			utils.Yellow.Printf("*** 发现新版本 [%s]！请前往 [https://github.com/Lyxot/CloudflareSpeedTestDNS/releases/latest] 更新！ ***", versionNew)
+			_, _ = utils.Yellow.Printf("*** 发现新版本 [%s]！请前往 [https://github.com/Lyxot/CloudflareSpeedTestDNS/releases/latest] 更新！ ***", versionNew)
 		} else {
-			utils.Green.Println("当前为最新版本 [" + version + "]！")
+			_, _ = utils.Green.Println("当前为最新版本 [" + version + "]！")
 		}
 		fmt.Printf("\n")
 		endPrint()
@@ -164,7 +164,7 @@ func cron() {
 }
 
 func speedTest() []string {
-	ipData := []string{}
+	var ipData []string
 	if task.IsBothMode() {
 		// 保存原始文件设置
 		origIPv4File := task.IPv4File
@@ -213,8 +213,8 @@ func ddnsSync(speedData utils.DownloadSpeedSet) []string {
 	}
 
 	// 根据结果类型分类
-	ipv4Results := []string{}
-	ipv6Results := []string{}
+	var ipv4Results []string
+	var ipv6Results []string
 	for i := 0; i < utils.PrintNum && i < len(speedData); i++ {
 		ip := speedData[i].IP.String()
 		if task.IsIPv4(ip) {
@@ -292,7 +292,12 @@ func checkUpdate() (string, error) {
 		return "", err
 	}
 	// 关闭资源流
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			utils.LogError("关闭版本检查响应流失败，错误信息: %v", err)
+		}
+	}(res.Body)
 
 	var result map[string]interface{}
 	if err := json.Unmarshal(body, &result); err != nil {

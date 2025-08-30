@@ -18,7 +18,7 @@ type cloudflareConfig struct {
 	TTL       int    `toml:"ttl"`       // TTL，1为自动
 }
 
-// 默认配置
+// CloudflareConfig 默认配置
 var (
 	CloudflareConfig = cloudflareConfig{
 		APIToken:  "",
@@ -91,7 +91,7 @@ func syncCloudflareRecords(ctx context.Context, api *cloudflare.API, recordType 
 		desiredCounter[v]++
 	}
 
-	changeableRecords := []cloudflare.DNSRecord{}
+	var changeableRecords []cloudflare.DNSRecord
 
 	for _, rec := range existingRecords {
 		if count, exists := desiredCounter[rec.Content]; exists && count > 0 {
@@ -102,7 +102,7 @@ func syncCloudflareRecords(ctx context.Context, api *cloudflare.API, recordType 
 	}
 
 	// 2) 展开剩余需要的目标值
-	remainingNeeded := []string{}
+	var remainingNeeded []string
 	for v, c := range desiredCounter {
 		for i := 0; i < c; i++ {
 			remainingNeeded = append(remainingNeeded, v)

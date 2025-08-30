@@ -68,12 +68,12 @@ func TestDownloadSpeed(ipSet utils.PingDelaySet) (speedSet utils.DownloadSpeedSe
 
 	utils.LogInfo("开始下载测速（下限：%.2f MB/s, 数量：%d, 队列：%d）", MinSpeed, TestCount, testNum)
 	// 控制 下载测速进度条 与 延迟测速进度条 长度一致（强迫症）
-	bar_a := len(strconv.Itoa(len(ipSet)))
-	bar_b := "     "
-	for i := 0; i < bar_a; i++ {
-		bar_b += " "
+	barA := len(strconv.Itoa(len(ipSet)))
+	barB := "     "
+	for i := 0; i < barA; i++ {
+		barB += " "
 	}
-	bar := utils.NewBar(TestCount, bar_b, "")
+	bar := utils.NewBar(TestCount, barB, "")
 	for i := 0; i < testNum; i++ {
 		speed, colo := downloadHandler(ipSet[i].IP)
 		ipSet[i].DownloadSpeed = speed
@@ -176,7 +176,14 @@ func downloadHandler(ip *net.IPAddr) (float64, string) {
 		}
 		return 0.0, ""
 	}
-	defer response.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			if utils.Debug { // 调试模式下，输出更多信息
+				utils.LogError("IP: %s, 关闭下载测速响应流失败，错误信息: %v, 下载测速地址: %s", ip.String(), err, URL)
+			}
+		}
+	}(response.Body)
 	if response.StatusCode != 200 {
 		if utils.Debug { // 调试模式下，输出更多信息
 			printDownloadDebugInfo(ip, nil, response.StatusCode, URL, lastRedirectURL, response)
@@ -224,9 +231,9 @@ func downloadHandler(ip *net.IPAddr) (float64, string) {
 				break
 			}
 			// 获取上个时间片
-			last_time_slice := timeStart.Add(timeSlice * time.Duration(timeCounter-1))
+			lastTimeSlice := timeStart.Add(timeSlice * time.Duration(timeCounter-1))
 			// 下载数据量 / (用当前时间 - 上个时间片/ 时间片)
-			e.Add(float64(contentRead-lastContentRead) / (float64(currentTime.Sub(last_time_slice)) / float64(timeSlice)))
+			e.Add(float64(contentRead-lastContentRead) / (float64(currentTime.Sub(lastTimeSlice)) / float64(timeSlice)))
 		}
 		contentRead += int64(bufferRead)
 	}

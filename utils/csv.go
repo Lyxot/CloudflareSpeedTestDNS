@@ -25,7 +25,7 @@ var (
 	Debug            = false // 是否开启调试模式
 )
 
-// 是否打印测试结果
+// NoPrintResult 是否打印测试结果
 func NoPrintResult() bool {
 	return PrintNum == 0
 }
@@ -36,11 +36,11 @@ func noOutput() bool {
 }
 
 type PingData struct {
-	IP       *net.IPAddr
-	Sended   int
-	Received int
-	Delay    time.Duration
-	Colo     string
+	IP          *net.IPAddr
+	Transmitted int
+	Received    int
+	Delay       time.Duration
+	Colo        string
 }
 
 type CloudflareIPData struct {
@@ -52,8 +52,8 @@ type CloudflareIPData struct {
 // 计算丢包率
 func (cf *CloudflareIPData) getLossRate() float32 {
 	if cf.lossRate == 0 {
-		pingLost := cf.Sended - cf.Received
-		cf.lossRate = float32(pingLost) / float32(cf.Sended)
+		pingLost := cf.Transmitted - cf.Received
+		cf.lossRate = float32(pingLost) / float32(cf.Transmitted)
 	}
 	return cf.lossRate
 }
@@ -61,7 +61,7 @@ func (cf *CloudflareIPData) getLossRate() float32 {
 func (cf *CloudflareIPData) toString() []string {
 	result := make([]string, 7)
 	result[0] = cf.IP.String()
-	result[1] = strconv.Itoa(cf.Sended)
+	result[1] = strconv.Itoa(cf.Transmitted)
 	result[2] = strconv.Itoa(cf.Received)
 	result[3] = strconv.FormatFloat(float64(cf.getLossRate()), 'f', 2, 32)
 	result[4] = strconv.FormatFloat(cf.Delay.Seconds()*1000, 'f', 2, 32)
@@ -84,7 +84,12 @@ func ExportCsv(data []CloudflareIPData) {
 		LogError("创建文件[%s]失败：%v", Output, err)
 		return
 	}
-	defer fp.Close()
+	defer func(fp *os.File) {
+		err := fp.Close()
+		if err != nil {
+			LogError("关闭文件[%s]失败：%v", Output, err)
+		}
+	}(fp)
 	w := csv.NewWriter(fp) //创建一个新的写入文件流
 	_ = w.Write([]string{"IP 地址", "已发送", "已接收", "丢包率", "平均延迟", "下载速度(MB/s)", "地区码"})
 	_ = w.WriteAll(convertToString(data))
@@ -110,10 +115,10 @@ func convertToString(data []CloudflareIPData) [][]string {
 	return result
 }
 
-// 延迟丢包排序
+// PingDelaySet 延迟丢包排序
 type PingDelaySet []CloudflareIPData
 
-// 延迟条件过滤
+// FilterDelay 延迟条件过滤
 func (s PingDelaySet) FilterDelay() (data PingDelaySet) {
 	if InputMaxDelay > maxDelay || InputMinDelay < minDelay { // 当输入的延迟条件不在默认范围内时，不进行过滤
 		return s
@@ -133,7 +138,7 @@ func (s PingDelaySet) FilterDelay() (data PingDelaySet) {
 	return
 }
 
-// 丢包条件过滤
+// FilterLossRate 丢包条件过滤
 func (s PingDelaySet) FilterLossRate() (data PingDelaySet) {
 	if InputMaxLossRate >= maxLossRate { // 当输入的丢包条件为默认值时，不进行过滤
 		return s
@@ -161,7 +166,7 @@ func (s PingDelaySet) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
-// 下载速度排序
+// DownloadSpeedSet 下载速度排序
 type DownloadSpeedSet []CloudflareIPData
 
 func (s DownloadSpeedSet) Len() int {
@@ -182,7 +187,7 @@ func (s DownloadSpeedSet) FilterIPv4() []IPData {
 		if strings.Contains(ip, ".") { // IPv4地址包含点
 			result = append(result, IPData{
 				IP:       ip,
-				Packets:  data.Sended,
+				Packets:  data.Transmitted,
 				Received: data.Received,
 				LossRate: data.getLossRate(),
 				Delay:    int64(data.Delay / time.Millisecond),
@@ -202,7 +207,7 @@ func (s DownloadSpeedSet) FilterIPv6() []IPData {
 		if strings.Contains(ip, ":") { // IPv6地址包含冒号
 			result = append(result, IPData{
 				IP:       ip,
-				Packets:  data.Sended,
+				Packets:  data.Transmitted,
 				Received: data.Received,
 				LossRate: data.getLossRate(),
 				Delay:    int64(data.Delay / time.Millisecond),
@@ -233,14 +238,14 @@ func (s DownloadSpeedSet) Print() {
 		LogInfo("完整测速结果 IP 数量为 0，跳过输出结果。")
 		return
 	}
-	dateString := convertToString(s) // 转为多维数组 [][]String
-	if len(dateString) < PrintNum {  // 如果IP数组长度(IP数量) 小于  打印次数，则次数改为IP数量
-		PrintNum = len(dateString)
+	dataString := convertToString(s) // 转为多维数组 [][]String
+	if len(dataString) < PrintNum {  // 如果IP数组长度(IP数量) 小于  打印次数，则次数改为IP数量
+		PrintNum = len(dataString)
 	}
 	headFormat := "%-16s%-5s%-5s%-5s%-6s%-12s%-5s"
 	dataFormat := "%-18s%-8s%-8s%-8s%-10s%-16s%-8s"
 	for i := 0; i < PrintNum; i++ { // 如果要输出的 IP 中包含 IPv6，那么就需要调整一下间隔
-		if len(dateString[i][0]) > 15 {
+		if len(dataString[i][0]) > 15 {
 			headFormat = "%-40s%-5s%-5s%-5s%-6s%-12s%-5s"
 			dataFormat = "%-42s%-8s%-8s%-8s%-10s%-16s%-8s"
 			break
@@ -248,7 +253,7 @@ func (s DownloadSpeedSet) Print() {
 	}
 	LogInfo(headFormat, "IP 地址", "已发送", "已接收", "丢包率", "平均延迟", "下载速度(MB/s)", "地区码")
 	for i := 0; i < PrintNum; i++ {
-		LogInfo(dataFormat, dateString[i][0], dateString[i][1], dateString[i][2], dateString[i][3], dateString[i][4], dateString[i][5], dateString[i][6])
+		LogInfo(dataFormat, dataString[i][0], dataString[i][1], dataString[i][2], dataString[i][3], dataString[i][4], dataString[i][5], dataString[i][6])
 	}
 	if !noOutput() {
 		LogInfo("完整测速结果已写入 %v 文件，可使用记事本/表格软件查看。", Output)

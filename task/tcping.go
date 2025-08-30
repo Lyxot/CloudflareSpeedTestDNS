@@ -20,9 +20,9 @@ const (
 )
 
 var (
-	Routines      = defaultRoutines
-	TCPPort   int = defaultPort
-	PingTimes int = defaultPingTimes
+	Routines  = defaultRoutines
+	TCPPort   = defaultPort
+	PingTimes = defaultPingTimes
 )
 
 type Ping struct {
@@ -98,21 +98,28 @@ func (p *Ping) tcping(ip *net.IPAddr) (bool, time.Duration) {
 	if err != nil {
 		return false, 0
 	}
-	defer conn.Close()
+	defer func(conn net.Conn) {
+		err := conn.Close()
+		if err != nil {
+			if utils.Debug { // 调试模式下，输出更多信息
+				utils.LogError("IP: %s, 关闭 TCP 连接失败，错误信息: %v", ip.String(), err)
+			}
+		}
+	}(conn)
 	duration := time.Since(startTime)
 	return true, duration
 }
 
 // pingReceived pingTotalTime
-func (p *Ping) checkConnection(ip *net.IPAddr) (recv int, totalDelay time.Duration, colo string) {
+func (p *Ping) checkConnection(ip *net.IPAddr) (received int, totalDelay time.Duration, colo string) {
 	if Httping {
-		recv, totalDelay, colo = p.httping(ip)
+		received, totalDelay, colo = p.httping(ip)
 		return
 	}
 	colo = "" // TCPing 不获取 colo
 	for i := 0; i < PingTimes; i++ {
 		if ok, delay := p.tcping(ip); ok {
-			recv++
+			received++
 			totalDelay += delay
 		}
 	}
@@ -129,21 +136,21 @@ func (p *Ping) appendIPData(data *utils.PingData) {
 
 // handle tcping
 func (p *Ping) tcpingHandler(ip *net.IPAddr) {
-	recv, totalDlay, colo := p.checkConnection(ip)
+	received, totalDelay, colo := p.checkConnection(ip)
 	nowAble := len(p.csv)
-	if recv != 0 {
+	if received != 0 {
 		nowAble++
 	}
 	p.bar.Grow(1, strconv.Itoa(nowAble))
-	if recv == 0 {
+	if received == 0 {
 		return
 	}
 	data := &utils.PingData{
-		IP:       ip,
-		Sended:   PingTimes,
-		Received: recv,
-		Delay:    totalDlay / time.Duration(recv),
-		Colo:     colo,
+		IP:          ip,
+		Transmitted: PingTimes,
+		Received:    received,
+		Delay:       totalDelay / time.Duration(received),
+		Colo:        colo,
 	}
 	p.appendIPData(data)
 }

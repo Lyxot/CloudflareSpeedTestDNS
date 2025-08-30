@@ -2,7 +2,6 @@ package task
 
 import (
 	"bufio"
-	"github.com/Lyxot/CloudflareSpeedTestDNS/utils"
 	"io"
 	"math/rand"
 	"net"
@@ -10,6 +9,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/Lyxot/CloudflareSpeedTestDNS/utils"
 )
 
 // isURL a string is a URL
@@ -23,7 +24,14 @@ func readIPsFromURL(url string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			if utils.Debug {
+				utils.LogError("Error closing response body: %v", err)
+			}
+		}
+	}(resp.Body)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -38,7 +46,7 @@ const defaultInputFile = "ip.txt"
 var (
 	// TestAll test all ip
 	TestAll = false
-	// IPFile is the filename of IP Rangs
+	// IPFile is the filename of IP Ranges
 	IPFile = defaultInputFile
 	// IPv4File is the filename of IPv4 Ranges
 	IPv4File = ""
@@ -236,7 +244,14 @@ func loadIPRanges() []*net.IPAddr {
 			if err != nil {
 				utils.LogFatal("os.Open err: %v", err)
 			}
-			defer file.Close()
+			defer func(file *os.File) {
+				err := file.Close()
+				if err != nil {
+					if utils.Debug {
+						utils.LogError("Error closing file: %v", err)
+					}
+				}
+			}(file)
 			scanner := bufio.NewScanner(file)
 			for scanner.Scan() {
 				lines = append(lines, scanner.Text())
@@ -245,7 +260,7 @@ func loadIPRanges() []*net.IPAddr {
 
 		for _, line := range lines {
 			line = strings.TrimSpace(line) // 去除首尾的空白字符（空格、制表符、换行符等）
-			if line == "" {                  // 跳过空行
+			if line == "" {                // 跳过空行
 				continue
 			}
 			// 根据当前模式决定是否处理该IP

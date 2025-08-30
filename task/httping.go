@@ -18,10 +18,10 @@ var (
 	Httping               bool
 	HttpingStatusCode     int
 	HttpingCFColo         string
-	HttpingCFColomap      *sync.Map
+	HttpingCFColoMap      *sync.Map
 	RegexpColoIATACode    = regexp.MustCompile(`[A-Z]{3}`)  // 匹配 IATA 机场地区码（俗称 机场三字码）的正则表达式
 	RegexpColoCountryCode = regexp.MustCompile(`[A-Z]{2}`)  // 匹配国家地区码的正则表达式（如 US、CN、UK 等）
-	RegexpColoGcore       = regexp.MustCompile(`^[a-z]{2}`) // 匹配城市地区码的正则表达式（小写，如 us、cn、uk 等）
+	RegexpColoCityCode    = regexp.MustCompile(`^[a-z]{2}`) // 匹配城市地区码的正则表达式（小写，如 us、cn、uk 等）
 )
 
 // pingReceived pingTotalTime
@@ -55,7 +55,14 @@ func (p *Ping) httping(ip *net.IPAddr) (int, time.Duration, string) {
 			}
 			return 0, 0, ""
 		}
-		defer response.Body.Close()
+		defer func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+				if utils.Debug { // 调试模式下，输出更多信息
+					utils.LogError("IP: %s, 关闭延迟测速响应流失败，错误信息: %v, 测速地址: %s", ip.String(), err, URL)
+				}
+			}
+		}(response.Body)
 
 		//fmt.Println("IP:", ip, "StatusCode:", response.StatusCode, response.Request.URL)
 		// 如果未指定的 HTTP 状态码，或指定的状态码不合规，则默认只认为 200、301、302 才算 HTTPing 通过
@@ -75,7 +82,13 @@ func (p *Ping) httping(ip *net.IPAddr) (int, time.Duration, string) {
 			}
 		}
 
-		io.Copy(io.Discard, response.Body)
+		_, err = io.Copy(io.Discard, response.Body)
+		if err != nil {
+			if utils.Debug { // 调试模式下，输出更多信息
+				utils.LogError("IP: %s, 读取延迟测速响应流失败，错误信息: %v, 测速地址: %s", ip.String(), err, URL)
+			}
+			return 0, 0, ""
+		}
 
 		// 通过头部参数获取地区码
 		colo = getHeaderColo(response.Header)
@@ -112,7 +125,13 @@ func (p *Ping) httping(ip *net.IPAddr) (int, time.Duration, string) {
 			continue
 		}
 		success++
-		io.Copy(io.Discard, response.Body)
+		_, err = io.Copy(io.Discard, response.Body)
+		if err != nil {
+			if utils.Debug {
+				utils.LogError("IP: %s, 读取延迟测速响应流失败，错误信息: %v, 测速地址: %s", ip.String(), err, URL)
+			}
+			continue
+		}
 		_ = response.Body.Close()
 		duration := time.Since(startTime)
 		delay += duration
@@ -126,12 +145,12 @@ func MapColoMap() *sync.Map {
 		return nil
 	}
 	// 将 -cfcolo 参数指定的地区地区码转为大写并格式化
-	colos := strings.Split(strings.ToUpper(HttpingCFColo), ",")
-	colomap := &sync.Map{}
-	for _, colo := range colos {
-		colomap.Store(colo, colo)
+	coloList := strings.Split(strings.ToUpper(HttpingCFColo), ",")
+	coloMap := &sync.Map{}
+	for _, colo := range coloList {
+		coloMap.Store(colo, colo)
 	}
-	return colomap
+	return coloMap
 }
 
 // 从响应头中获取 地区码 值
@@ -168,7 +187,7 @@ func getHeaderColo(header http.Header) (colo string) {
 			if colo = header.Get("x-vercel-id"); colo != "" {
 				return strings.ToUpper(strings.SplitN(colo, "::", 2)[0])
 			}
-		} 
+		}
 	}
 	// 如果是 AWS CloudFront CDN（测试地址 https://d7uri8nf7uskq.cloudfront.net/tools/list-cloudfront-ips
 	// x-amz-cf-pop: SIN52-P1
@@ -188,7 +207,7 @@ func getHeaderColo(header http.Header) (colo string) {
 	// x-shard: fr5-shard0-default
 	// x-id: fr5-hw-edge-gc28
 	if colo = header.Get("x-id-fe"); colo != "" {
-		if colo = RegexpColoGcore.FindString(colo); colo != "" {
+		if colo = RegexpColoCityCode.FindString(colo); colo != "" {
 			return strings.ToUpper(colo) // 将小写的地区码转换为大写
 		}
 	}
@@ -203,11 +222,11 @@ func (p *Ping) filterColo(colo string) string {
 		return ""
 	}
 	// 如果没有指定 -cfcolo 参数，则直接返回
-	if HttpingCFColomap == nil {
+	if HttpingCFColoMap == nil {
 		return colo
 	}
 	// 匹配 机场地区码 是否为指定的地区
-	_, ok := HttpingCFColomap.Load(colo)
+	_, ok := HttpingCFColoMap.Load(colo)
 	if ok {
 		return colo
 	}

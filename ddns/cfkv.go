@@ -18,7 +18,7 @@ type cloudflareKVConfig struct {
 	NamespaceID string // Cloudflare KV Namespace ID
 }
 
-// 默认配置
+// CloudflareKVConfig 默认配置
 var (
 	CloudflareKVConfig = cloudflareKVConfig{
 		Enable:      false,
