@@ -1,7 +1,7 @@
 FROM alpine:latest AS base
 FROM base AS builder
 ARG TARGETPLATFORM
-COPY release-assests .
+COPY release-assets .
 RUN ARTIFACT_ARCH=""; \
     if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         ARTIFACT_ARCH="amd64"; \
@@ -17,13 +17,13 @@ RUN ARTIFACT_ARCH=""; \
         echo "Unsupported architecture: $TARGETPLATFORM"; \
         exit 1; \
     fi; \
-    mv release-assests/$ARTIFACT_ARCH /app; \
+    mv $ARTIFACT_ARCH /app; \
     cd /app && mv config.example.toml config.toml
 
 
 FROM base
+WORKDIR /app
 COPY --from=builder /app .
 RUN apk add --no-cache tzdata
-WORKDIR /app
 ENV TZ=Asia/Shanghai
 ENTRYPOINT ["/app/cfstd"]
