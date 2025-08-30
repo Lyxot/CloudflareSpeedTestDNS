@@ -161,6 +161,14 @@ func getHeaderColo(header http.Header) (colo string) {
 		if colo = header.Get("server"); strings.Contains(colo, "BunnyCDN-") {
 			return RegexpColoCountryCode.FindString(strings.TrimPrefix(colo, "BunnyCDN-")) // 去掉 BunnyCDN- 前缀再去匹配
 		}
+
+		// 如果是 Vercel CDN
+		// server: Vercel
+		if header.Get("server") == "Vercel" {
+			if colo = header.Get("x-vercel-id"); colo != "" {
+				return strings.ToUpper(strings.SplitN(colo, "::", 2)[0])
+			}
+		} 
 	}
 	// 如果是 AWS CloudFront CDN（测试地址 https://d7uri8nf7uskq.cloudfront.net/tools/list-cloudfront-ips
 	// x-amz-cf-pop: SIN52-P1
