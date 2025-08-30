@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  version:
-    name: Get Version
+  prepare:
+    name: Prepare
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.output.outputs.tag }}
@@ -20,6 +20,28 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Generate PGO data
+        env:
+          CFSTD_PING_TIMES: 10
+          CFSTD_HTTPING: true
+          CFSTD_TEST_COUNT: 30
+          CFSTD_URL: ${{ secrets.CFSTD_URL }}
+          CFSTD_MIN_SPEED: 5
+        run: |
+          go run . -pgo
+          mv cpu.pprof default.pgo
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pgo
+          path: default.pgo
+
       - name: Output
         id: output
         run: |
@@ -28,7 +50,7 @@ jobs:
 
   build-release:
     name: Build Release
-    needs: version
+    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -92,10 +114,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Download pgo data
+        uses: actions/download-artifact@v5
+        with:
+          name: pgo
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
+
+      - id: o
+        run: |
+          if [ ${{ matrix.goos }} = 'windows' ]; then
+            echo "file_name=cfstd.exe" >> $GITHUB_OUTPUT
+          else
+            echo "file_name=cfstd" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build
         env:
@@ -104,21 +139,13 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           GOARM: ${{ matrix.goarm }}
           GOMIPS: ${{ matrix.gomips }}
-        run: |
-          if [ ${{ matrix.goos }} = 'windows' ]; then
-            go build -v -o cfstd.exe -ldflags="-s -w -X main.version=${{ needs.version.outputs.version }} -X main.gitCommit=${{ needs.version.outputs.commit }}"
-          else
-            go build -v -o cfstd -ldflags="-s -w -X main.version=${{ needs.version.outputs.version }} -X main.gitCommit=${{ needs.version.outputs.commit }}"
-          fi
+        run: go build -v -o ${{ steps.o.outputs.file_name }} -ldflags="-s -w -X main.version=${{ needs.prepare.outputs.version }} -X main.gitCommit=${{ needs.prepare.outputs.commit }}"
 
       - name: Package
         run: |
           mv conf/config.example.toml config.example.toml
-          if [ ${{ matrix.goos }} = 'windows' ]; then
-            7z a ${{ matrix.artifact_name }}-${{ needs.version.outputs.version }}.zip cfstd.exe ip.txt ipv6.txt config.example.toml LICENSE
-          else
-            zip ${{ matrix.artifact_name }}-${{ needs.version.outputs.version }}.zip cfstd ip.txt ipv6.txt config.example.toml LICENSE
-          fi
+          zip ${{ matrix.artifact_name }}-${{ needs.prepare.outputs.version }}.zip ${{ steps.o.outputs.file_name }} ip.txt ipv6.txt config.example.toml LICENSE
+          ls -R
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -128,7 +155,7 @@ jobs:
 
   release:
     name: Release
-    needs: [version, build-release]
+    needs: [prepare, build-release]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -137,29 +164,45 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: release-assets
           pattern: cfstd-*
           merge-multiple: true
 
       - name: Update RELEASE_NOTES.md
-        run: sed -i "s/__VERSION__/${{ needs.version.outputs.version }}/g" RELEASE_NOTES.md
+        run: sed -i "s/__VERSION__/${{ needs.prepare.outputs.version }}/g" RELEASE_NOTES.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.version.outputs.version }}
+          tag_name: ${{ needs.prepare.outputs.version }}
           body_path: RELEASE_NOTES.md
           files: release-assets/*.zip
 
   docker:
     name: Build and push Docker image
-    needs: [version, build-release]
+    needs: [prepare, build-release]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: release-assets
+          pattern: cfstd-*
+          merge-multiple: true
+
+      - name: Unzip artifacts
+        run: |
+          cd release-assets
+          unzip -d 386 cfstd-linux-x86-${{ needs.prepare.outputs.version }}.zip
+          unzip -d amd64 cfstd-linux-x86_64-${{ needs.prepare.outputs.version }}.zip
+          unzip -d armv7 cfstd-linux-armv7-${{ needs.prepare.outputs.version }}.zip
+          unzip -d armv8 cfstd-linux-aarch64-${{ needs.prepare.outputs.version }}.zip
+          unzip -d riscv64 cfstd-linux-riscv64-${{ needs.prepare.outputs.version }}.zip
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -180,9 +223,9 @@ jobs:
           images: |
             lyxot/cfstd
           tags: |
-            type=semver,pattern={{version}},value=${{ needs.version.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.version.outputs.version }}
-            type=semver,pattern={{major}},value=${{ needs.version.outputs.version }}
+            type=semver,pattern={{version}},value=${{ needs.prepare.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.prepare.outputs.version }}
+            type=semver,pattern={{major}},value=${{ needs.prepare.outputs.version }}
             type=raw,value=latest
 
       - name: Build and push
@@ -194,6 +237,3 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            VERSION=${{ needs.version.outputs.version }}
-            GIT_COMMIT=${{ needs.version.outputs.commit }}

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	"time"
 
 	"github.com/Lyxot/CloudflareSpeedTestDNS/conf"
@@ -23,7 +24,7 @@ var (
 )
 
 func init() {
-	var printVersion, checkUpdateFlag, debugFlag bool
+	var printVersion, checkUpdateFlag, debugFlag, pgoFlag bool
 	var help = `CloudflareSpeedTestDNS ` + version + `-` + gitCommit + `
 测试各个 CDN 或网站所有 IP 的延迟和速度，获取最快 IP (IPv4+IPv6)！
 https://github.com/Lyxot/CloudflareSpeedTestDNS
@@ -33,6 +34,8 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
         指定TOML配置文件；默认为config.toml，不存在时使用默认参数
     -debug
         调试输出模式；会在一些非预期情况下输出更多日志以便判断原因；(默认 关闭)
+	-pgo
+		开启 CPU 性能分析
     -v
         打印程序版本
     -u
@@ -41,11 +44,16 @@ https://github.com/Lyxot/CloudflareSpeedTestDNS
         打印帮助说明
 `
 	flag.BoolVar(&debugFlag, "debug", false, "调试输出模式")
+	flag.BoolVar(&pgoFlag, "pgo", false, "开启 CPU 性能分析")
 	flag.StringVar(&configFile, "c", "", "指定TOML配置文件")
 	flag.BoolVar(&printVersion, "v", false, "打印程序版本")
 	flag.BoolVar(&checkUpdateFlag, "u", false, "检查版本更新")
 	flag.Usage = func() { fmt.Print(help) }
 	flag.Parse()
+
+	if pgoFlag {
+		pgo()
+	}
 
 	if printVersion {
 		fmt.Printf("CloudflareSpeedTestDNS version %s, build %s, %s\n", version, gitCommit, runtime.Version())
@@ -308,4 +316,21 @@ func checkUpdate() (string, error) {
 		return tagName, nil
 	}
 	return "", fmt.Errorf("can't get tag_name from github api")
+}
+
+func pgo() {
+	f, err := os.Create("cpu.pprof")
+	if err != nil {
+		utils.LogFatal("could not create CPU profile: %v", err)
+	}
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			utils.LogFatal("could not close CPU profile: %v", err)
+		}
+	}(f)
+	if err := pprof.StartCPUProfile(f); err != nil {
+		utils.LogFatal("could not start CPU profile: %v", err)
+	}
+	defer pprof.StopCPUProfile()
 }
