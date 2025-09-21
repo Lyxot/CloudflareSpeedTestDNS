@@ -62,6 +62,12 @@ disable_download = false
 # 显示结果数量 (默认 10 个，为 0 时不显示结果直接退出)
 print_num = 10
 
+# 最少结果数量 (默认 0，为 0 时不检查结果数量)
+min_num = 0
+
+# 最大尝试次数 (默认 10 次)
+max_attempts = 10
+
 # IPv4段数据文件，可以填写文件路径或URL (默认为空)
 # 指定后仅测试IPv4地址，忽略文件中的非IPv4地址
 ipv4_file = ""

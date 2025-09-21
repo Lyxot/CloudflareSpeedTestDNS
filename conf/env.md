@@ -20,6 +20,8 @@
 | `CFSTD_MIN_SPEED` | `0.0` | 下载速度下限，单位 MB/s |
 | `CFSTD_DISABLE_DOWNLOAD` | `false` | 禁用下载测速 |
 | `CFSTD_PRINT_NUM` | `10` | 显示结果数量 |
+| `CFSTD_MIN_NUM` | `0` | 最少结果数量 |
+| `CFSTD_MAX_ATTEMPTS` | `10` | 最大尝试次数 |
 | `CFSTD_IPV4_FILE` | `""` | IPv4段数据文件路径或 URL |
 | `CFSTD_IPV6_FILE` | `""` | IPv6段数据文件路径或 URL |
 | `CFSTD_IP_FILE` | `"ip.txt"` | IP段数据文件路径或 URL |

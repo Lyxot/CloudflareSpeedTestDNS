@@ -205,10 +205,22 @@ func speedTest() []string {
 }
 
 func singleSpeedTest() utils.DownloadSpeedSet {
-	// 开始延迟测速 + 过滤延迟/丢包
-	pingData := task.NewPing().Run().FilterDelay().FilterLossRate()
-	// 开始下载测速
-	speedData := task.TestDownloadSpeed(pingData)
+	var speedData utils.DownloadSpeedSet
+	for i := 0; i < conf.MaxAttempts; i++ {
+		// 开始延迟测速 + 过滤延迟/丢包
+		pingData := task.NewPing().Run().FilterDelay().FilterLossRate()
+		// 开始下载测速
+		speedData = task.TestDownloadSpeed(pingData)
+		if len(speedData) >= conf.MinNum {
+			break
+		}
+		if i < conf.MaxAttempts-1 {
+			utils.LogWarn("符合条件的IP数量[%d]少于设定的最小数量[%d]，将在3秒后开始新一轮测试...", len(speedData), conf.MinNum)
+			time.Sleep(3 * time.Second)
+		} else {
+			utils.LogWarn("符合条件的IP数量[%d]少于设定的最小数量[%d]，已达到最大重试次数，测试结束。", len(speedData), conf.MinNum)
+		}
+	}
 	utils.ExportCsv(speedData) // 输出文件
 	speedData.Print()          // 打印结果
 

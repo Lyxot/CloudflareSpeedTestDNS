@@ -21,6 +21,8 @@ var (
 	LossRateThreshold float32
 	CheckInterval     time.Duration
 	TestInterval      time.Duration
+	MinNum            int
+	MaxAttempts       int
 )
 
 // Config 配置文件结构体
@@ -46,13 +48,15 @@ type Config struct {
 	DisableDownload bool    `toml:"disable_download"` // 禁用下载测速
 
 	// 输入输出相关
-	PrintNum int    `toml:"print_num"` // 显示结果数量
-	IpFile   string `toml:"ip_file"`   // IP段数据文件
-	Ipv4File string `toml:"ipv4_file"` // IPv4段数据文件
-	Ipv6File string `toml:"ipv6_file"` // IPv6段数据文件
-	IpText   string `toml:"ip_text"`   // 指定IP段数据
-	Output   string `toml:"output"`    // 输出结果文件
-	LogFile  string `toml:"log_file"`  // 日志文件
+	PrintNum    int    `toml:"print_num"`    // 显示结果数量
+	MinNum      int    `toml:"min_num"`      // 最少结果数量
+	MaxAttempts int    `toml:"max_attempts"` // 最大尝试次数
+	IpFile      string `toml:"ip_file"`      // IP段数据文件
+	Ipv4File    string `toml:"ipv4_file"`    // IPv4段数据文件
+	Ipv6File    string `toml:"ipv6_file"`    // IPv6段数据文件
+	IpText      string `toml:"ip_text"`      // 指定IP段数据
+	Output      string `toml:"output"`       // 输出结果文件
+	LogFile     string `toml:"log_file"`     // 日志文件
 
 	// 其他选项
 	TestAll bool `toml:"test_all"` // 测速全部IP
@@ -159,6 +163,8 @@ func CreateDefaultConfig() *Config {
 		MinSpeed:        0.0,
 		DisableDownload: false,
 		PrintNum:        10,
+		MinNum:          0,
+		MaxAttempts:     10,
 		IpFile:          "ip.txt",
 		Ipv4File:        "",
 		Ipv6File:        "",
@@ -299,6 +305,14 @@ func ApplyConfig(config *Config) {
 	// 设置输入输出相关参数
 	if config.PrintNum >= 0 {
 		utils.PrintNum = config.PrintNum
+	}
+
+	if config.MinNum > 0 {
+		MinNum = config.MinNum
+	}
+
+	if config.MaxAttempts > 0 {
+		MaxAttempts = config.MaxAttempts
 	}
 
 	if config.Output != "" {
