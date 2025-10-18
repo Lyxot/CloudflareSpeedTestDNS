@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -119,14 +120,14 @@ func main() {
 	if conf.EnableCron {
 		cron() // 定时任务
 	} else {
-		speedTest() // 开始测速
+		_, _ = speedTest() // 开始测速
 	}
 	endPrint() // 根据情况选择退出方式（针对 Windows）
 }
 
 func cron() {
 	utils.LogInfo("定时任务已启用")
-	ipData := speedTest()
+	ipData, _ := speedTest()
 
 	// 设置定时器
 	testTicker := time.NewTicker(conf.TestInterval)
@@ -136,7 +137,12 @@ func cron() {
 		select {
 		case <-testTicker.C:
 			utils.LogInfo("强制刷新任务开始...")
-			ipData = speedTest()
+			testResult, err := speedTest()
+			if err == nil {
+				ipData = testResult
+			} else {
+				utils.LogWarn("新一轮测速未获取到符合条件的IP，继续使用上次结果")
+			}
 			checkTicker.Reset(conf.CheckInterval)
 		case <-checkTicker.C:
 			utils.LogInfo("开始检查延迟和丢包率...")
@@ -162,7 +168,12 @@ func cron() {
 
 			if len(pingData) != len(ipData) {
 				utils.LogInfo("延迟或丢包率超过阈值，开始新一轮测速...")
-				ipData = speedTest()
+				testResult, err := speedTest()
+				if err == nil {
+					ipData = testResult
+				} else {
+					utils.LogWarn("新一轮测速未获取到符合条件的IP，继续使用上次结果")
+				}
 				testTicker.Reset(conf.TestInterval)
 			} else {
 				utils.LogInfo("延迟和丢包率在阈值范围内")
@@ -171,8 +182,9 @@ func cron() {
 	}
 }
 
-func speedTest() []string {
+func speedTest() ([]string, error) {
 	var ipData []string
+	var err error
 	if task.IsBothMode() {
 		// 保存原始文件设置
 		origIPv4File := task.IPv4File
@@ -183,28 +195,41 @@ func speedTest() []string {
 		utils.LogInfo("[IPv4] 开始测试IPv4...")
 		task.IPv6File = ""
 		utils.Output = utils.GetFilenameWithSuffix(originOutput, "ipv4")
-		ipv4SpeedData := singleSpeedTest()                  // 开始延迟测速 + 过滤延迟/丢包
-		ipData = append(ipData, ddnsSync(ipv4SpeedData)...) // 同步到DNS
+		ipv4SpeedData, testErr := singleSpeedTest("IPv4") // 开始延迟测速 + 过滤延迟/丢包
+		if testErr == nil {
+			ipData = append(ipData, ddnsSync(ipv4SpeedData)...) // 同步到DNS
+		} else {
+			err = testErr
+		}
 
 		// 测试IPv6
 		utils.LogInfo("[IPv6] 开始测试IPv6...")
 		task.IPv4File = ""
 		task.IPv6File = origIPv6File
 		utils.Output = utils.GetFilenameWithSuffix(originOutput, "ipv6")
-		ipv6SpeedData := singleSpeedTest()                  // 开始延迟测速 + 过滤延迟/丢包
-		ipData = append(ipData, ddnsSync(ipv6SpeedData)...) // 同步到DNS
+		ipv6SpeedData, testErr := singleSpeedTest("IPv6") // 开始延迟测速 + 过滤延迟/丢包
+		if testErr == nil {
+			ipData = append(ipData, ddnsSync(ipv6SpeedData)...) // 同步到DNS
+		} else {
+			err = errors.Join(err, testErr)
+		}
 
 		// 恢复原始文件设置
 		task.IPv4File = origIPv4File
 		task.IPv6File = origIPv6File
 		utils.Output = originOutput
 	} else {
-		ipData = ddnsSync(singleSpeedTest()) // 延迟测速 + 过滤延迟/丢包 + 同步到DNS
+		speedData, testErr := singleSpeedTest("IP")
+		if testErr == nil {
+			ipData = ddnsSync(speedData) // 延迟测速 + 过滤延迟/丢包 + 同步到DNS
+		} else {
+			err = testErr
+		}
 	}
-	return ipData
+	return ipData, err
 }
 
-func singleSpeedTest() utils.DownloadSpeedSet {
+func singleSpeedTest(ipVersion string) (utils.DownloadSpeedSet, error) {
 	var speedData utils.DownloadSpeedSet
 	for i := 0; i < conf.MaxAttempts; i++ {
 		// 开始延迟测速 + 过滤延迟/丢包
@@ -215,16 +240,17 @@ func singleSpeedTest() utils.DownloadSpeedSet {
 			break
 		}
 		if i < conf.MaxAttempts-1 {
-			utils.LogWarn("符合条件的IP数量[%d]少于设定的最小数量[%d]，将在3秒后开始新一轮测试...", len(speedData), conf.MinNum)
-			time.Sleep(3 * time.Second)
+			utils.LogWarn("符合条件的%s数量[%d]少于设定的最小数量[%d]，将在15秒后开始新一轮测试...", ipVersion, len(speedData), conf.MinNum)
+			time.Sleep(15 * time.Second)
 		} else {
-			utils.LogWarn("符合条件的IP数量[%d]少于设定的最小数量[%d]，已达到最大重试次数，测试结束。", len(speedData), conf.MinNum)
+			utils.LogWarn("符合条件的%s数量[%d]少于设定的最小数量[%d]，已达到最大重试次数[%d]，测试结束。", ipVersion, len(speedData), conf.MinNum, conf.MaxAttempts)
+			return speedData, fmt.Errorf("符合条件的%s数量少于设定的最小数量", ipVersion)
 		}
 	}
 	utils.ExportCsv(speedData) // 输出文件
 	speedData.Print()          // 打印结果
 
-	return speedData
+	return speedData, nil
 }
 
 func ddnsSync(speedData utils.DownloadSpeedSet) []string {
@@ -294,7 +320,7 @@ func endPrint() {
 	}
 	if runtime.GOOS == "windows" { // 如果是 Windows 系统，则需要按下 回车键 或 Ctrl+C 退出（避免通过双击运行时，测速完毕后直接关闭）
 		fmt.Println("按下 回车键 或 Ctrl+C 退出。")
-		fmt.Scanln()
+		_, _ = fmt.Scanln()
 	}
 }
 
